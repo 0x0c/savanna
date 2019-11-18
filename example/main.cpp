@@ -16,11 +16,6 @@ public:
 		return "www.yahoo.com";
 	}
 
-	virtual http::verb method()
-	{
-		return http::verb::get;
-	}
-
 	virtual std::string path()
 	{
 		return "/";
