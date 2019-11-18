@@ -31,6 +31,11 @@ namespace savanna
 			}
 		}
 
+		std::string to_string()
+		{
+			return scheme() + "://" + host() + ":" + path() + "?" + query();
+		}
+
 		std::string scheme()
 		{
 			return scheme_;

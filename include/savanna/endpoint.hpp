@@ -30,16 +30,34 @@ namespace savanna
 		virtual std::string host() = 0;
 		virtual http::verb method() = 0;
 		virtual boost::optional<std::map<std::string, std::string>> params() = 0;
-		virtual std::string build_path() = 0;
+		virtual std::string path() = 0;
+
+		virtual std::string build_path()
+		{
+			return path();
+		}
 
 		virtual int port()
 		{
 			return 80;
 		}
 
-		virtual std::string path()
+		virtual std::string param_str()
 		{
-			return build_path();
+			if (params()) {
+				std::string param_str;
+				auto pp = *(params());
+				for (auto p = pp.begin(); p != pp.end(); ++p) {
+					param_str += p->first;
+					param_str += "=";
+					param_str += p->second;
+					param_str += "&";
+				}
+				param_str.pop_back();
+				return param_str;
+			}
+
+			return "";
 		}
 
 		virtual std::string build_url_str()
@@ -58,6 +76,33 @@ namespace savanna
 		savanna::url url()
 		{
 			return savanna::url(build_url_str());
+		}
+	};
+
+	class post_endpoint_t : public endpoint_t
+	{
+	private:
+		boost::optional<std::map<std::string, std::string>> patams_;
+
+	public:
+		post_endpoint_t(boost::optional<std::map<std::string, std::string>> patams)
+		    : patams_(patams)
+		{
+		}
+
+		boost::optional<std::map<std::string, std::string>> params()
+		{
+			return patams_;
+		}
+
+		http::verb method()
+		{
+			return http::verb::post;
+		}
+
+		std::string build_path()
+		{
+			return path();
 		}
 	};
 
@@ -82,28 +127,14 @@ namespace savanna
 			return http::verb::get;
 		}
 
-		virtual std::string query_str()
-		{
-			if (params()) {
-				std::string new_query_str = "?";
-				for (auto p = params()->begin(); p != params()->end(); ++p) {
-					new_query_str += p->first;
-					new_query_str += "=";
-					new_query_str += p->second;
-					new_query_str += "&";
-				}
-				new_query_str.pop_back();
-				return new_query_str;
-			}
-
-			return "";
-		}
-
 		std::string build_path()
 		{
 			std::string new_path;
 			new_path += path();
-			new_path += query_str();
+			if (params()) {
+				new_path += "?";
+				new_path += param_str();
+			}
 			return new_path;
 		}
 	};

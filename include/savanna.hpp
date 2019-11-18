@@ -26,6 +26,19 @@ namespace savanna
 	namespace ssl = net::ssl;
 	using tcp = net::ip::tcp;
 
+	static inline std::string param_str(std::map<std::string, std::string> &params)
+	{
+		std::string param_str;
+		for (auto p = params.begin(); p != params.end(); ++p) {
+			param_str += p->first;
+			param_str += "=";
+			param_str += p->second;
+			param_str += "&";
+		}
+		param_str.pop_back();
+		return param_str;
+	}
+
 	static inline net::io_context *shared_ctx()
 	{
 		static net::io_context ioc;
@@ -40,8 +53,8 @@ namespace savanna
 		Endpoint endpoint;
 		unsigned int version = 11;
 
-		request_t()
-		    : endpoint(Endpoint())
+		request_t(Endpoint e)
+		    : endpoint(e)
 		{
 			static_assert(std::is_base_of<endpoint_t, Endpoint>::value, "Endpoint not derived from endpoint_t");
 		}
@@ -91,9 +104,21 @@ namespace savanna
 		template <typename Stream, typename Body>
 		static http::response<Body> send_request(Stream &stream, savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version)
 		{
-			http::request<http::string_body> req(method, url.path(), version);
+			std::string path = url.path();
+			if (url.query().size() > 0) {
+				path += "?" + url.query();
+			}
+			if (url.fragment().size() > 0) {
+				path += "#" + url.fragment();
+			}
+			http::request<http::string_body> req(method, path, version);
 			req.set(http::field::host, url.host());
 			req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+			if (method == http::verb::post && params) {
+				auto p = *params;
+				req.body() = param_str(p);
+				req.prepare_payload();
+			}
 			http::write(stream, req);
 
 			beast::flat_buffer buffer;
