@@ -2,9 +2,13 @@
 
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/ssl/error.hpp>
+#include <boost/asio/ssl/stream.hpp>
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
+#include <boost/beast/ssl.hpp>
 #include <boost/beast/version.hpp>
+
 #include <boost/optional.hpp>
 #include <exception>
 #include <regex>
@@ -19,6 +23,7 @@ namespace savanna
 	namespace beast = boost::beast;
 	namespace http = beast::http;
 	namespace net = boost::asio;
+	namespace ssl = net::ssl;
 	using tcp = net::ip::tcp;
 
 	static inline net::io_context *shared_ctx()
@@ -71,47 +76,94 @@ namespace savanna
 	class url_session
 	{
 	private:
-		template <typename Body>
-		static http::response<Body> send_request(savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version)
+		static ssl::context *shared_ssl_ctx()
 		{
-			tcp::resolver resolver(*shared_ctx());
-			beast::tcp_stream stream(*shared_ctx());
-			auto const results = resolver.resolve(url.host(), url.port_str());
+			static ssl::context ctx(ssl::context::tlsv12_client);
+			return &ctx;
+		}
 
-			stream.connect(results);
+		static tcp::resolver *shared_resolver()
+		{
+			static tcp::resolver resolver(*shared_ctx());
+			return &resolver;
+		}
 
+		template <typename Stream, typename Body>
+		static http::response<Body> send_request(Stream &stream, savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version)
+		{
 			http::request<http::string_body> req(method, url.path(), version);
 			req.set(http::field::host, url.host());
 			req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-
-			// Send the HTTP request to the remote host
 			http::write(stream, req);
 
-			// This buffer is used for reading and must be persisted
 			beast::flat_buffer buffer;
-
-			// Declare a container to hold the response
 			http::response<Body> response;
-
-			// Receive the HTTP response
 			http::read(stream, buffer, response);
 
 			if (response.result_int() >= 300 && response.result_int() < 400 && follow_location) {
 				auto location = response.base()["Location"].to_string();
 				auto new_url = savanna::url(location);
+				std::cout << response << std::endl;
+				std::cout << "redirect to " << location << std::endl;
 				response = send_request<Body>(new_url, method, params, follow_location, version);
 			}
 
-			// Gracefully close the socket
-			beast::error_code ec;
-			stream.socket().shutdown(tcp::socket::shutdown_both, ec);
-
-			// not_connected happens sometimes
-			// so don't bother reporting it.
-			if (ec && ec != beast::errc::not_connected) {
-				throw beast::system_error { ec };
-			}
 			return response;
+		}
+
+		template <typename Body>
+		static http::response<Body> send_request(savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version)
+		{
+			auto const results = shared_resolver()->resolve(url.host(), url.port_str());
+			auto scheme = url.scheme() + "://";
+			if (scheme == url_scheme::https) {
+				auto stream = beast::ssl_stream<beast::tcp_stream>(*shared_ctx(), *shared_ssl_ctx());
+
+				// Set SNI Hostname (many hosts need this to handshake successfully)
+				if (!SSL_set_tlsext_host_name(stream.native_handle(), url.host().c_str())) {
+					beast::error_code ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
+					throw beast::system_error { ec };
+				}
+
+				// Make the connection on the IP address we get from a lookup
+				beast::get_lowest_layer(stream).connect(results);
+
+				// Perform the SSL handshake
+				stream.handshake(ssl::stream_base::client);
+
+				auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body>(stream, url, method, params, follow_location, version);
+
+				beast::error_code ec;
+				stream.shutdown(ec);
+
+				if (ec == net::error::eof) {
+					// Rationale:
+					// http://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
+					ec = {};
+				}
+				if (ec && ec != beast::errc::not_connected) {
+					// not_connected happens sometimes
+					// so don't bother reporting it.
+					throw beast::system_error { ec };
+				}
+
+				return response;
+			}
+			else {
+				auto stream = beast::tcp_stream(*shared_ctx());
+				stream.connect(results);
+				auto response = send_request<beast::tcp_stream, Body>(stream, url, method, params, follow_location, version);
+
+				beast::error_code ec;
+				stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+
+				if (ec && ec != beast::errc::not_connected) {
+					// not_connected happens sometimes
+					// so don't bother reporting it.
+					throw beast::system_error { ec };
+				}
+				return response;
+			}
 		}
 
 		template <typename Body, typename Endpoint>
@@ -123,6 +175,22 @@ namespace savanna
 		}
 
 	public:
+		static void load_root_cert(std::string cert)
+		{
+			auto ctx = shared_ssl_ctx();
+
+			// This holds the root certificate used for verification
+			// load_root_certificates(ctx);
+			boost::system::error_code ec;
+			ctx->add_certificate_authority(boost::asio::buffer(cert.data(), cert.size()), ec);
+			if (ec) {
+				throw beast::system_error { ec };
+			}
+
+			// Verify the remote server's certificate
+			ctx->set_verify_mode(ssl::verify_peer);
+		}
+
 		url_session() = default;
 		template <typename Body, typename Endpoint>
 		static savanna::result_t<http::response<Body>> send(savanna::request_t<Endpoint> request)

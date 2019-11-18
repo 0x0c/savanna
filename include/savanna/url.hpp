@@ -9,7 +9,7 @@ namespace savanna
 	class url
 	{
 	private:
-		std::string protocol_;
+		std::string scheme_;
 		std::string host_;
 		std::string port_;
 		std::string path_;
@@ -22,7 +22,7 @@ namespace savanna
 			std::regex ex("(http|https)://([^/ :]+):?([^/ ]*)(/?[^ #?]*)\\x3f?([^ #]*)#?([^ ]*)");
 			std::cmatch what;
 			if (regex_match(url.c_str(), what, ex)) {
-				protocol_ = std::string(what[1].first, what[1].second);
+				scheme_ = std::string(what[1].first, what[1].second);
 				host_ = std::string(what[2].first, what[2].second);
 				port_ = std::string(what[3].first, what[3].second);
 				path_ = std::string(what[4].first, what[4].second);
@@ -31,9 +31,9 @@ namespace savanna
 			}
 		}
 
-		std::string protocol()
+		std::string scheme()
 		{
-			return protocol_;
+			return scheme_;
 		}
 
 		std::string host()

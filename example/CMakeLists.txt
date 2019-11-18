@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_executable(simple_client main.cpp)
 
-target_link_libraries(simple_client savanna)
+find_package(openssl REQUIRED)
+target_link_libraries(simple_client
+    savanna
+    OpenSSL::SSL
+    OpenSSL::Crypto)
 
 target_include_directories(simple_client INTERFACE ../include)
