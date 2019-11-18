@@ -102,10 +102,7 @@ namespace savanna
 
 			if (response.result_int() >= 300 && response.result_int() < 400 && follow_location) {
 				auto location = response.base()["Location"].to_string();
-				auto new_url = savanna::url(location);
-				std::cout << response << std::endl;
-				std::cout << "redirect to " << location << std::endl;
-				response = send_request<Body>(new_url, method, params, follow_location, version);
+				response = send_request<Body>(savanna::url(location), method, params, follow_location, version);
 			}
 
 			return response;
