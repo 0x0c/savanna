@@ -138,5 +138,39 @@ namespace savanna
 			return new_path;
 		}
 	};
+
+	class put_endpoint_t : public post_endpoint_t
+	{
+	private:
+		boost::optional<std::map<std::string, std::string>> patams_;
+
+	public:
+		put_endpoint_t(boost::optional<std::map<std::string, std::string>> patams)
+		    : post_endpoint_t(patams)
+		{
+		}
+
+		http::verb method()
+		{
+			return http::verb::put;
+		}
+	};
+
+	class delete_endpoint_t : public post_endpoint_t
+	{
+	private:
+		boost::optional<std::map<std::string, std::string>> patams_;
+
+	public:
+		delete_endpoint_t(boost::optional<std::map<std::string, std::string>> patams)
+		    : post_endpoint_t(patams)
+		{
+		}
+
+		http::verb method()
+		{
+			return http::verb::delete_;
+		}
+	};
 }
 }
