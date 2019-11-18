@@ -114,7 +114,7 @@ namespace savanna
 			http::request<http::string_body> req(method, path, version);
 			req.set(http::field::host, url.host());
 			req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-			if (method == http::verb::post && params) {
+			if (method != http::verb::get && params) {
 				auto p = *params;
 				req.body() = param_str(p);
 				req.prepare_payload();
