@@ -64,7 +64,7 @@ public:
 int main(int argc, char *argv[])
 {
 	std::once_flag once;
-	std::call_once(once, savanna::url_session::load_root_cert, m2d::root_cert);
+	std::call_once(once, savanna::load_root_cert, m2d::root_cert, *savanna::shared_ssl_ctx());
 
 	std::map<std::string, std::string> params{
 		{ "John", "1000" },

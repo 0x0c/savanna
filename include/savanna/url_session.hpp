@@ -129,18 +129,6 @@ namespace savanna
 		}
 
 	public:
-		static void load_root_cert(std::string cert)
-		{
-			auto ctx = shared_ssl_ctx();
-			boost::system::error_code ec;
-			ctx->add_certificate_authority(boost::asio::buffer(cert.data(), cert.size()), ec);
-			if (ec) {
-				throw beast::system_error{ ec };
-			}
-
-			ctx->set_verify_mode(ssl::verify_peer);
-		}
-
 		url_session() = default;
 		template <typename Body, typename Endpoint>
 		static savanna::result_t<http::response<Body>> send(savanna::request_t<Endpoint> request)
