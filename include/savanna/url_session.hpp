@@ -35,18 +35,6 @@ namespace savanna
 	class url_session
 	{
 	private:
-		static ssl::context *shared_ssl_ctx()
-		{
-			static ssl::context ctx(ssl::context::tlsv12_client);
-			return &ctx;
-		}
-
-		static tcp::resolver *shared_resolver()
-		{
-			static tcp::resolver resolver(*shared_ctx());
-			return &resolver;
-		}
-
 		template <typename Stream, typename Body>
 		static http::response<Body> send_request(Stream &stream, savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version)
 		{
@@ -144,7 +132,6 @@ namespace savanna
 		static void load_root_cert(std::string cert)
 		{
 			auto ctx = shared_ssl_ctx();
-
 			boost::system::error_code ec;
 			ctx->add_certificate_authority(boost::asio::buffer(cert.data(), cert.size()), ec);
 			if (ec) {

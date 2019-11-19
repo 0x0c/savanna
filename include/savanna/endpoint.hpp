@@ -13,12 +13,6 @@ namespace savanna
 	namespace beast = boost::beast;
 	namespace http = beast::http;
 
-	namespace url_scheme
-	{
-		static const std::string https = "https://";
-		static const std::string http = "http://";
-	}
-
 	class endpoint_t
 	{
 	public:

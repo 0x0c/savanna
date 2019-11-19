@@ -17,4 +17,5 @@ install(TARGETS savanna
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # Add sub-directories
-add_subdirectory(example)
+add_subdirectory(example/client)
+add_subdirectory(example/websocket)

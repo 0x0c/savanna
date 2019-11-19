@@ -11,4 +11,4 @@ target_link_libraries(simple_client
     OpenSSL::SSL
     OpenSSL::Crypto)
 
-target_include_directories(simple_client INTERFACE ../include)
+target_include_directories(simple_client INTERFACE ../../include)

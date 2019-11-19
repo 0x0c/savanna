@@ -11,7 +11,7 @@ class get_localhost_endpoint_t : public savanna::get_endpoint_t
 {
 public:
 	get_localhost_endpoint_t(std::map<std::string, std::string> params)
-	    : get_endpoint_t(params) {};
+	    : get_endpoint_t(params){};
 
 	virtual std::string scheme()
 	{
@@ -38,7 +38,7 @@ class post_localhost_endpoint_t : public savanna::post_endpoint_t
 {
 public:
 	post_localhost_endpoint_t(std::map<std::string, std::string> params)
-	    : post_endpoint_t(params) {};
+	    : post_endpoint_t(params){};
 
 	virtual std::string scheme()
 	{
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	std::once_flag once;
 	std::call_once(once, savanna::url_session::load_root_cert, m2d::root_cert);
 
-	std::map<std::string, std::string> params {
+	std::map<std::string, std::string> params{
 		{ "John", "1000" },
 		{ "Tom", "1400" },
 		{ "Harry", "800" }
