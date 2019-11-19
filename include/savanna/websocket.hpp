@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/any.hpp>
 #include <boost/asio/connect.hpp>
 #include <boost/asio/ip/tcp.hpp>
 #include <boost/asio/ssl/stream.hpp>
@@ -35,61 +36,75 @@ namespace savanna
 		using tls = beast::websocket::stream<beast::ssl_stream<tcp::socket>>;
 		using raw = beast::websocket::stream<tcp::socket>;
 
-		// class stream
-		// {
-		// };
-
-		// template <typename T>
 		class session
 		{
 		private:
 			beast::flat_buffer buffer_;
 			savanna::url url_;
-			boost::optional<std::function<void(beast::flat_buffer &)>> on_message_handler;
-			savanna::websocket::raw *stream_ = nullptr;
+			std::string scheme_;
+			boost::optional<std::function<void(beast::flat_buffer &)>> on_message_handler_;
+			websocket::tls tls_stream_;
+			websocket::raw raw_stream_;
 
-			void wait()
+			void wait(websocket::raw &stream)
 			{
-				if (stream_) {
-					beast::flat_buffer buffer;
-					stream_->read(buffer);
-					if (on_message_handler) {
-						auto handler = *(on_message_handler);
-						handler(buffer);
-					}
-				}
+				stream.async_read(buffer_, beast::bind_front_handler(&session::on_read, this));
 			}
 
-			void
-			on_read(
-			    beast::error_code ec,
-			    std::size_t bytes_transferred)
+			void wait(websocket::tls &stream)
+			{
+				stream.async_read(buffer_, beast::bind_front_handler(&session::on_read, this));
+			}
+
+			void connect(websocket::raw &stream, tcp::resolver::results_type const &results)
+			{
+				net::connect(stream.next_layer(), results.begin(), results.end());
+				stream.set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
+					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
+				}));
+
+				stream.handshake(url_.host(), "/");
+			}
+
+			void connect(websocket::tls &stream, tcp::resolver::results_type const &results)
+			{
+				net::connect(stream.next_layer().next_layer(), results.begin(), results.end());
+				stream.set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
+					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
+				}));
+
+				stream.handshake(url_.host(), "/");
+			}
+
+			void on_read(beast::error_code ec, std::size_t bytes_transferred)
 			{
 				boost::ignore_unused(bytes_transferred);
 
-				if (ec)
-					return fail(ec, "read");
+				if (ec) {
+					throw beast::system_error { ec };
+				}
 
 				std::cout << beast::make_printable(buffer_.data()) << std::endl;
-
-				// Close the WebSocket connection
-				stream_->async_read(
-				    buffer_,
-				    beast::bind_front_handler(
-				        &session::on_read,
-				        this));
+				if (scheme_ == url_scheme::wss) {
+					wait(tls_stream_);
+				}
+				else {
+					wait(raw_stream_);
+				}
 			}
 
 		public:
 			session(savanna::url url)
 			    : url_(url)
+			    , scheme_(url_.scheme() + "://")
+			    , tls_stream_(*shared_ws_ctx(), *shared_ssl_ctx())
+			    , raw_stream_(*shared_ws_ctx())
 			{
 			}
 
 			~session()
 			{
 				close();
-				delete stream_;
 			}
 
 			void run()
@@ -97,40 +112,30 @@ namespace savanna
 				auto resolver = shared_ws_resolver();
 				auto const results = resolver->resolve(url_.host(), url_.port_str());
 
-				// auto scheme = url_.scheme() + "://";
-				// if (scheme == url_scheme::wss) {
-				// use tls
-				// stream_ = new websocket::tls{ *shared_ws_ctx(), *shared_ssl_ctx() };
-				// }
-				// else {
-				stream_ = new websocket::raw{ *shared_ws_ctx() };
-				// }
-
-				net::connect(stream_->next_layer(), results.begin(), results.end());
-
-				stream_->set_option(beast::websocket::stream_base::decorator(
-				    [](beast::websocket::request_type &req) {
-					    req.set(http::field::user_agent,
-					        std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
-				    }));
-
-				stream_->handshake(url_.host(), "/");
-				stream_->async_read(
-				    buffer_,
-				    beast::bind_front_handler(
-				        &session::on_read,
-				        this));
+				if (scheme_ == url_scheme::wss) {
+					connect(tls_stream_, results);
+					wait(tls_stream_);
+				}
+				else {
+					connect(raw_stream_, results);
+					wait(raw_stream_);
+				}
 				(*shared_ws_ctx()).run();
 			}
 
 			void close()
 			{
-				stream_->close(beast::websocket::close_code::normal);
+				if (scheme_ == url_scheme::wss) {
+					tls_stream_.close(beast::websocket::close_code::normal);
+				}
+				else {
+					raw_stream_.close(beast::websocket::close_code::normal);
+				}
 			}
 
 			void on_message(std::function<void(beast::flat_buffer &)> handler)
 			{
-				on_message_handler = handler;
+				on_message_handler_ = handler;
 			}
 		};
 	}

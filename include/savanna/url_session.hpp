@@ -76,8 +76,8 @@ namespace savanna
 				auto stream = beast::ssl_stream<beast::tcp_stream>(*shared_ctx(), *shared_ssl_ctx());
 
 				if (!SSL_set_tlsext_host_name(stream.native_handle(), url.host().c_str())) {
-					beast::error_code ec{ static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
-					throw beast::system_error{ ec };
+					beast::error_code ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
+					throw beast::system_error { ec };
 				}
 
 				beast::get_lowest_layer(stream).connect(results);
@@ -98,7 +98,7 @@ namespace savanna
 				if (ec && ec != beast::errc::not_connected) {
 					// not_connected happens sometimes
 					// so don't bother reporting it.
-					throw beast::system_error{ ec };
+					throw beast::system_error { ec };
 				}
 
 				return response;
@@ -114,7 +114,7 @@ namespace savanna
 				if (ec && ec != beast::errc::not_connected) {
 					// not_connected happens sometimes
 					// so don't bother reporting it.
-					throw beast::system_error{ ec };
+					throw beast::system_error { ec };
 				}
 				return response;
 			}

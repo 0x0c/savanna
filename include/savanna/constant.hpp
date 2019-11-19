@@ -34,7 +34,7 @@ namespace savanna
 		return &ioc;
 	};
 
-	static tcp::resolver *shared_resolver()
+	static inline tcp::resolver *shared_resolver()
 	{
 		static tcp::resolver resolver(*shared_ctx());
 		return &resolver;
@@ -46,7 +46,7 @@ namespace savanna
 		return &ioc;
 	};
 
-	static tcp::resolver *shared_ws_resolver()
+	static inline tcp::resolver *shared_ws_resolver()
 	{
 		static tcp::resolver resolver(*shared_ws_ctx());
 		return &resolver;
