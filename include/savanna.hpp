@@ -141,13 +141,11 @@ namespace savanna
 			if (scheme == url_scheme::https) {
 				auto stream = beast::ssl_stream<beast::tcp_stream>(*shared_ctx(), *shared_ssl_ctx());
 
-				// Set SNI Hostname (many hosts need this to handshake successfully)
 				if (!SSL_set_tlsext_host_name(stream.native_handle(), url.host().c_str())) {
-					beast::error_code ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
-					throw beast::system_error { ec };
+					beast::error_code ec{ static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
+					throw beast::system_error{ ec };
 				}
 
-				// Make the connection on the IP address we get from a lookup
 				beast::get_lowest_layer(stream).connect(results);
 
 				// Perform the SSL handshake
@@ -166,7 +164,7 @@ namespace savanna
 				if (ec && ec != beast::errc::not_connected) {
 					// not_connected happens sometimes
 					// so don't bother reporting it.
-					throw beast::system_error { ec };
+					throw beast::system_error{ ec };
 				}
 
 				return response;
@@ -182,7 +180,7 @@ namespace savanna
 				if (ec && ec != beast::errc::not_connected) {
 					// not_connected happens sometimes
 					// so don't bother reporting it.
-					throw beast::system_error { ec };
+					throw beast::system_error{ ec };
 				}
 				return response;
 			}
@@ -201,15 +199,12 @@ namespace savanna
 		{
 			auto ctx = shared_ssl_ctx();
 
-			// This holds the root certificate used for verification
-			// load_root_certificates(ctx);
 			boost::system::error_code ec;
 			ctx->add_certificate_authority(boost::asio::buffer(cert.data(), cert.size()), ec);
 			if (ec) {
-				throw beast::system_error { ec };
+				throw beast::system_error{ ec };
 			}
 
-			// Verify the remote server's certificate
 			ctx->set_verify_mode(ssl::verify_peer);
 		}
 
