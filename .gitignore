@@ -1,4 +1,5 @@
-example/simple_client
+example/client/simple_client
+example/websocket/simple_ws
 
 # Created by https://www.gitignore.io/api/c++,cmake,linux,clion,macos,windows,visualstudiocode,xcode
 # Edit at https://www.gitignore.io/?templates=c++,cmake,linux,clion,macos,windows,visualstudiocode,xcode
