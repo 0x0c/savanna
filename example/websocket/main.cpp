@@ -1,3 +1,4 @@
+#include <chrono>
 #include <iostream>
 #include <savanna.hpp>
 
@@ -18,7 +19,13 @@ int main(int argc, char *argv[])
 	session.on_message([](beast::flat_buffer buffer) {
 		std::cout << beast::make_printable(buffer.data()) << std::endl;
 	});
-	session.run();
+	session.connect();
+
+	while (true) {
+		std::cout << "send" << std::endl;
+		session.send("hello");
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+	}
 
 	return 0;
 }
