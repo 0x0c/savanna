@@ -28,11 +28,6 @@ namespace savanna
 
 	namespace websocket
 	{
-		void fail(beast::error_code ec, char const *what)
-		{
-			std::cerr << what << ": " << ec.message() << "\n";
-		}
-
 		using tls = beast::websocket::stream<beast::ssl_stream<tcp::socket>>;
 		using raw = beast::websocket::stream<tcp::socket>;
 
@@ -45,7 +40,6 @@ namespace savanna
 			boost::optional<std::function<void(beast::flat_buffer &)>> on_message_handler_;
 			websocket::tls tls_stream_;
 			websocket::raw raw_stream_;
-			// boost::asio::io_context::work work_;
 
 			void wait(websocket::raw &stream)
 			{
@@ -74,6 +68,7 @@ namespace savanna
 					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
 				}));
 
+				stream.next_layer().handshake(ssl::stream_base::client);
 				stream.handshake(url_.host(), "/");
 			}
 
@@ -83,20 +78,13 @@ namespace savanna
 				boost::ignore_unused(bytes_transferred);
 
 				if (ec) {
-					throw beast::system_error{ ec };
+					throw beast::system_error { ec };
 				}
 
 				if (on_message_handler_) {
 					auto handler = *on_message_handler_;
 					handler(buffer_);
 				}
-
-				// if (scheme_ == url_scheme::wss) {
-				// 	wait(tls_stream_);
-				// }
-				// else {
-				// 	wait(raw_stream_);
-				// }
 			}
 
 			void on_write(beast::error_code ec, std::size_t bytes_transferred)
@@ -104,7 +92,7 @@ namespace savanna
 				boost::ignore_unused(bytes_transferred);
 				std::cout << "on_write" << std::endl;
 				if (ec) {
-					throw beast::system_error{ ec };
+					throw beast::system_error { ec };
 				}
 			}
 
@@ -114,7 +102,6 @@ namespace savanna
 			    , scheme_(url_.scheme() + "://")
 			    , tls_stream_(*shared_ws_ctx(), *shared_ssl_ctx())
 			    , raw_stream_(*shared_ws_ctx())
-			// , work_(*shared_ws_ctx())
 			{
 			}
 
@@ -125,9 +112,11 @@ namespace savanna
 
 			void connect()
 			{
+				std::cout << "connect: " << url_.scheme() << "://" << url_.host() << ":" << url_.port_str() << std::endl;
 				auto resolver = shared_ws_resolver();
 				auto const results = resolver->resolve(url_.host(), url_.port_str());
 				if (scheme_ == url_scheme::wss) {
+					std::cout << "use tls" << std::endl;
 					make_connection(tls_stream_, results);
 				}
 				else {
