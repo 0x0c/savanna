@@ -112,11 +112,9 @@ namespace savanna
 
 			void connect()
 			{
-				std::cout << "connect: " << url_.scheme() << "://" << url_.host() << ":" << url_.port_str() << std::endl;
 				auto resolver = shared_ws_resolver();
 				auto const results = resolver->resolve(url_.host(), url_.port_str());
 				if (scheme_ == url_scheme::wss) {
-					std::cout << "use tls" << std::endl;
 					make_connection(tls_stream_, results);
 				}
 				else {

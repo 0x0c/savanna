@@ -13,6 +13,7 @@ class ServerHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(b"<h1>It works!</h1>")
         query = urlparse(self.path).query
+        print("---Header---")
         print(self.headers)
         print("---Query---")
         print(query)
@@ -23,6 +24,7 @@ class ServerHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         content_len = int(self.headers.get("content-length"))
         req_body = self.rfile.read(content_len).decode("utf-8")
+        print("---Header---")
         print(self.headers)
         print("---Body---")
         print(req_body)
