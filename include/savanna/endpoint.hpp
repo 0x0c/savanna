@@ -76,17 +76,17 @@ namespace savanna
 	class post_endpoint_t : public endpoint_t
 	{
 	private:
-		boost::optional<std::map<std::string, std::string>> patams_;
+		boost::optional<std::map<std::string, std::string>> params_;
 
 	public:
-		post_endpoint_t(boost::optional<std::map<std::string, std::string>> patams)
-		    : patams_(patams)
+		post_endpoint_t(boost::optional<std::map<std::string, std::string>> params)
+		    : params_(params)
 		{
 		}
 
 		boost::optional<std::map<std::string, std::string>> params()
 		{
-			return patams_;
+			return params_;
 		}
 
 		http::verb method()
@@ -136,11 +136,11 @@ namespace savanna
 	class put_endpoint_t : public post_endpoint_t
 	{
 	private:
-		boost::optional<std::map<std::string, std::string>> patams_;
+		boost::optional<std::map<std::string, std::string>> params_;
 
 	public:
-		put_endpoint_t(boost::optional<std::map<std::string, std::string>> patams)
-		    : post_endpoint_t(patams)
+		put_endpoint_t(boost::optional<std::map<std::string, std::string>> params)
+		    : post_endpoint_t(params)
 		{
 		}
 
@@ -153,11 +153,11 @@ namespace savanna
 	class delete_endpoint_t : public post_endpoint_t
 	{
 	private:
-		boost::optional<std::map<std::string, std::string>> patams_;
+		boost::optional<std::map<std::string, std::string>> params_;
 
 	public:
-		delete_endpoint_t(boost::optional<std::map<std::string, std::string>> patams)
-		    : post_endpoint_t(patams)
+		delete_endpoint_t(boost::optional<std::map<std::string, std::string>> params)
+		    : post_endpoint_t(params)
 		{
 		}
 
