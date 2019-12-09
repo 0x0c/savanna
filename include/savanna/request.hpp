@@ -13,6 +13,7 @@ namespace savanna
 		bool follow_location = false;
 		Endpoint endpoint;
 		unsigned int version = 11;
+		std::string body;
 
 		request_t(Endpoint e)
 		    : endpoint(e)

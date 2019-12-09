@@ -31,9 +31,16 @@ namespace savanna
 			}
 		}
 
-		std::string to_string()
+		std::string to_string(bool append_query = true, bool append_fragment = true)
 		{
-			return scheme() + "://" + host() + ":" + path() + "?" + query();
+			std::string str = scheme() + "://" + host() + ":" + path();
+			if (append_query) {
+				str += "?" + query();
+			}
+			if (append_fragment) {
+				str += "#" + fragment();
+			}
+			return str;
 		}
 
 		std::string scheme()

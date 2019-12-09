@@ -73,6 +73,7 @@ int main(int argc, char *argv[])
 	};
 	auto endpoint = post_localhost_endpoint_t(params);
 	savanna::request_t<post_localhost_endpoint_t> request(endpoint);
+	request.body = "BODY";
 	request.follow_location = true;
 
 	std::map<std::string, std::string> header {

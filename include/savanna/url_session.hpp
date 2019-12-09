@@ -37,15 +37,10 @@ namespace savanna
 	private:
 		std::map<std::string, std::string> header_;
 		template <typename Stream, typename Body>
-		static http::response<Body> send_request(Stream &stream, savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version, std::map<std::string, std::string> header)
+		static http::response<Body> send_request(Stream &stream, savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version, std::map<std::string, std::string> header, std::string body)
 		{
-			std::string path = url.path();
-			if (url.query().size() > 0) {
-				path += "?" + url.query();
-			}
-			if (url.fragment().size() > 0) {
-				path += "#" + url.fragment();
-			}
+			std::string path = url.to_string();
+
 			http::request<http::string_body> req(method, path, version);
 			req.set(http::field::host, url.host());
 			req.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
@@ -54,10 +49,17 @@ namespace savanna
 				req.set(h->first, h->second);
 			}
 
-			if (method != http::verb::get && params) {
-				auto p = *params;
-				req.body() = param_str(p);
-				req.prepare_payload();
+			if (method != http::verb::get) {
+				std::string body_str = body;
+				if (params) {
+					auto p = *params;
+					req.body() = body_str + param_str(p);
+					req.prepare_payload();
+				}
+				else {
+					req.body() = body_str;
+					req.prepare_payload();
+				}
 			}
 			http::write(stream, req);
 
@@ -67,14 +69,14 @@ namespace savanna
 
 			if (response.result_int() >= 300 && response.result_int() < 400 && follow_location) {
 				auto location = response.base()["Location"].to_string();
-				response = send_request<Body>(savanna::url(location), method, params, follow_location, version, header);
+				response = send_request<Body>(savanna::url(location), method, params, follow_location, version, header, body);
 			}
 
 			return response;
 		}
 
 		template <typename Body>
-		static http::response<Body> send_request(savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version, std::map<std::string, std::string> header)
+		static http::response<Body> send_request(savanna::url url, http::verb method, boost::optional<std::map<std::string, std::string>> params, bool follow_location, int version, std::map<std::string, std::string> header, std::string body)
 		{
 			auto const results = shared_resolver()->resolve(url.host(), url.port_str());
 			auto scheme = url.scheme() + "://";
@@ -91,7 +93,7 @@ namespace savanna
 				// Perform the SSL handshake
 				stream.handshake(ssl::stream_base::client);
 
-				auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body>(stream, url, method, params, follow_location, version, header);
+				auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body>(stream, url, method, params, follow_location, version, header, body);
 
 				beast::error_code ec;
 				stream.shutdown(ec);
@@ -112,7 +114,7 @@ namespace savanna
 			else {
 				auto stream = beast::tcp_stream(*shared_ctx());
 				stream.connect(results);
-				auto response = send_request<beast::tcp_stream, Body>(stream, url, method, params, follow_location, version, header);
+				auto response = send_request<beast::tcp_stream, Body>(stream, url, method, params, follow_location, version, header, body);
 
 				beast::error_code ec;
 				stream.socket().shutdown(tcp::socket::shutdown_both, ec);
@@ -127,10 +129,10 @@ namespace savanna
 		}
 
 		template <typename Body, typename Endpoint>
-		static http::response<Body> send_request(Endpoint endpoint, bool follow_location, int version, std::map<std::string, std::string> header)
+		static http::response<Body> send_request(Endpoint endpoint, bool follow_location, int version, std::map<std::string, std::string> header, std::string body)
 		{
 			static_assert(std::is_base_of<endpoint_t, Endpoint>::value, "Endpoint not derived from endpoint_t");
-			http::response<Body> response = send_request<Body>(endpoint.url(), endpoint.method(), endpoint.params(), follow_location, version, header);
+			http::response<Body> response = send_request<Body>(endpoint.url(), endpoint.method(), endpoint.params(), follow_location, version, header, body);
 			return response;
 		}
 
@@ -144,7 +146,7 @@ namespace savanna
 		{
 			static_assert(std::is_base_of<endpoint_t, Endpoint>::value, "Endpoint not derived from endpoint_t");
 			try {
-				http::response<Body> response = send_request<Body, Endpoint>(request.endpoint, request.follow_location, request.version, header_);
+				http::response<Body> response = send_request<Body, Endpoint>(request.endpoint, request.follow_location, request.version, header_, request.body);
 				return result_t<http::response<Body>>(response);
 			} catch (std::exception const &e) {
 				return result_t<http::response<Body>>(e);
