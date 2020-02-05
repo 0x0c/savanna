@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.2)
 add_definitions("-Wall")
 set(CMAKE_CXX_STANDARD 11)
 
-project(savanna VERSION 0.0.1 DESCRIPTION "inter-process notification")
+project(savanna VERSION 0.0.1 DESCRIPTION "boost-beast wrapper")
 add_library(savanna INTERFACE)
 
 find_package(boost 1.70.0 REQUIRED)
