@@ -75,13 +75,13 @@ int main(int argc, char *argv[])
 	savanna::request_t<post_localhost_endpoint_t> request(endpoint);
 	request.body = "BODY";
 	request.follow_location = true;
-
-	std::map<std::string, std::string> header {
+	request.headerFields = {
 		{ "A", "a" },
 		{ "B", "b" },
 		{ "C", "c" }
 	};
-	auto session = savanna::url_session(header);
+
+	auto session = savanna::url_session();
 	auto result = session.send<http::dynamic_body>(request);
 	if (result.error) {
 		auto e = *(result.error);

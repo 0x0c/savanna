@@ -14,6 +14,7 @@ namespace savanna
 		Endpoint endpoint;
 		unsigned int version = 11;
 		std::string body;
+		std::map<std::string, std::string> headerFields;
 
 		request_t(Endpoint e)
 		    : endpoint(e)
