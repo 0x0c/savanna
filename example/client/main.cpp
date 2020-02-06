@@ -7,10 +7,10 @@ using namespace m2d;
 namespace beast = boost::beast;
 namespace http = beast::http;
 
-class get_localhost_endpoint_t : public savanna::get_endpoint_t
+class get_yahoo_endpoint_t : public savanna::get_endpoint_t
 {
 public:
-	get_localhost_endpoint_t(std::map<std::string, std::string> params)
+	get_yahoo_endpoint_t(std::map<std::string, std::string> params)
 	    : get_endpoint_t(params) {};
 
 	virtual std::string scheme()
@@ -27,11 +27,6 @@ public:
 	{
 		return "/";
 	}
-
-	// virtual int port()
-	// {
-	// 	return 443;
-	// }
 };
 
 class post_localhost_endpoint_t : public savanna::post_endpoint_t
@@ -71,8 +66,8 @@ int main(int argc, char *argv[])
 		{ "Tom", "1400" },
 		{ "Harry", "800" }
 	};
-	auto endpoint = get_localhost_endpoint_t(params);
-	savanna::request_t<get_localhost_endpoint_t> request(endpoint);
+	auto endpoint = post_localhost_endpoint_t(params);
+	savanna::request_t<post_localhost_endpoint_t> request(endpoint);
 	request.body = "BODY";
 	request.follow_location = true;
 	request.header_fields = {
