@@ -16,15 +16,16 @@ namespace savanna
 
 	namespace url_scheme
 	{
-		static const std::string https = "https://";
-		static const std::string http = "http://";
-		static const std::string wss = "wss://";
-		static const std::string ws = "ws://";
+		static const std::string https = "https:";
+		static const std::string http = "http:";
+		static const std::string wss = "wss:";
+		static const std::string ws = "ws:";
 	}
 
 	static ssl::context *shared_ssl_ctx()
 	{
 		static ssl::context ctx(ssl::context::tlsv12_client);
+		ctx.set_verify_mode(ssl::verify_peer);
 		return &ctx;
 	}
 

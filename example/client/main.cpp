@@ -15,12 +15,12 @@ public:
 
 	virtual std::string scheme()
 	{
-		return savanna::url_scheme::http;
+		return savanna::url_scheme::https;
 	}
 
 	virtual std::string host()
 	{
-		return "localhost";
+		return "yahoo.co.jp";
 	}
 
 	virtual std::string path()
@@ -28,10 +28,10 @@ public:
 		return "/";
 	}
 
-	virtual int port()
-	{
-		return 8080;
-	}
+	// virtual int port()
+	// {
+	// 	return 443;
+	// }
 };
 
 class post_localhost_endpoint_t : public savanna::post_endpoint_t
@@ -71,8 +71,8 @@ int main(int argc, char *argv[])
 		{ "Tom", "1400" },
 		{ "Harry", "800" }
 	};
-	auto endpoint = post_localhost_endpoint_t(params);
-	savanna::request_t<post_localhost_endpoint_t> request(endpoint);
+	auto endpoint = get_localhost_endpoint_t(params);
+	savanna::request_t<get_localhost_endpoint_t> request(endpoint);
 	request.body = "BODY";
 	request.follow_location = true;
 	request.header_fields = {
@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	auto result = session.send<http::dynamic_body>(request);
 	if (result.error) {
 		auto e = *(result.error);
-		std::cout << "Error: " << e.what() << std::endl;
+		std::cout << "Error: " << e.what() << ", code: " << e.code() << std::endl;
 		return -1;
 	}
 
