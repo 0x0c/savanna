@@ -15,7 +15,7 @@ public:
 
 	virtual std::string scheme()
 	{
-		return savanna::url_scheme::https;
+		return savanna::url_scheme::http;
 	}
 
 	virtual std::string host()
@@ -66,8 +66,10 @@ int main(int argc, char *argv[])
 		{ "Tom", "1400" },
 		{ "Harry", "800" }
 	};
-	auto endpoint = post_localhost_endpoint_t(params);
-	savanna::request_t<post_localhost_endpoint_t> request(endpoint);
+	// auto endpoint = post_localhost_endpoint_t(params);
+	// savanna::request_t<post_localhost_endpoint_t> request(endpoint);
+	auto endpoint = get_yahoo_endpoint_t(params);
+	savanna::request_t<get_yahoo_endpoint_t> request(endpoint);
 	request.body = "BODY";
 	request.follow_location = true;
 	request.header_fields = {
