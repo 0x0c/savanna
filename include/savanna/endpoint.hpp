@@ -57,7 +57,7 @@ namespace savanna
 		virtual std::string build_url_str()
 		{
 			std::string new_url;
-			new_url += scheme() + "//";
+			new_url += scheme() + "://";
 			new_url += host();
 			if (port() != 80) {
 				new_url += ":" + std::to_string(port());

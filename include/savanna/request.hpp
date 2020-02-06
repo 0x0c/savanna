@@ -16,7 +16,7 @@ namespace savanna
 		unsigned int version = 11;
 		std::string body;
 		std::map<std::string, std::string> header_fields;
-		std::chrono::milliseconds timeout_interval = std::chrono::seconds(30);
+		std::chrono::nanoseconds timeout_interval = std::chrono::seconds(30);
 
 		request_t(Endpoint e)
 		    : endpoint(e)
