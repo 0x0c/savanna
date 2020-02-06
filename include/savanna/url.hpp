@@ -19,7 +19,7 @@ namespace savanna
 	public:
 		url(std::string url)
 		{
-			std::regex ex("(http:|https:|ws:|wss:)//([^/ :]+):?([^/ ]*)(/?[^ #?]*)\\x3f?([^ #]*)#?([^ ]*)");
+			std::regex ex("(http|https|ws|wss)://([^/ :]+):?([^/ ]*)(/?[^ #?]*)\\x3f?([^ #]*)#?([^ ]*)");
 			std::cmatch what;
 			if (regex_match(url.c_str(), what, ex)) {
 				scheme_ = std::string(what[1].first, what[1].second);
@@ -61,7 +61,7 @@ namespace savanna
 		std::string port_str()
 		{
 			if (port_ == "") {
-				if (scheme() == savanna::url_scheme::https) {
+				if (scheme() == savanna::url_scheme::https || scheme() == savanna::url_scheme::wss) {
 					return "443";
 				}
 				return "80";
