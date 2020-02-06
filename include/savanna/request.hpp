@@ -1,6 +1,7 @@
 #pragma once
 
 #include <boost/optional.hpp>
+#include <chrono>
 
 namespace m2d
 {
@@ -14,7 +15,8 @@ namespace savanna
 		Endpoint endpoint;
 		unsigned int version = 11;
 		std::string body;
-		std::map<std::string, std::string> headerFields;
+		std::map<std::string, std::string> header_fields;
+		std::chrono::milliseconds timeout_interval = std::chrono::seconds(30);
 
 		request_t(Endpoint e)
 		    : endpoint(e)

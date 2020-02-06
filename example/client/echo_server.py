@@ -33,5 +33,6 @@ class ServerHandler(http.server.SimpleHTTPRequestHandler):
 if __name__ == "__main__":
     HOST, PORT = '', LISTEN_PORT
 
+    socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer((HOST, PORT), ServerHandler) as server:
         server.serve_forever()

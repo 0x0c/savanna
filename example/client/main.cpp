@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
 	savanna::request_t<post_localhost_endpoint_t> request(endpoint);
 	request.body = "BODY";
 	request.follow_location = true;
-	request.headerFields = {
+	request.header_fields = {
 		{ "A", "a" },
 		{ "B", "b" },
 		{ "C", "c" }
