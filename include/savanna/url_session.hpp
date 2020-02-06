@@ -83,7 +83,9 @@ namespace savanna
 
 				if (!SSL_set_tlsext_host_name(stream.native_handle(), url.host().c_str())) {
 					beast::error_code ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
-					throw beast::system_error { ec };
+					if (ec != net::ssl::error::stream_truncated) {
+						throw beast::system_error { ec };
+					}
 				}
 
 				beast::get_lowest_layer(stream).expires_after(request.timeout_interval);
@@ -97,11 +99,13 @@ namespace savanna
 				beast::error_code ec;
 				stream.shutdown(ec);
 
-				if (ec == net::error::eof) {
+				if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
 					// Rationale:
 					// http://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
+					// https://github.com/boostorg/beast/blob/master/example/http/server/async-ssl/http_server_async_ssl.cpp#L216
 					ec = {};
 				}
+
 				if (ec && ec != beast::errc::not_connected) {
 					// not_connected happens sometimes
 					// so don't bother reporting it.

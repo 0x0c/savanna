@@ -25,7 +25,6 @@ namespace savanna
 	static ssl::context *shared_ssl_ctx()
 	{
 		static ssl::context ctx(ssl::context::tlsv12_client);
-		ctx.set_verify_mode(ssl::verify_peer);
 		return &ctx;
 	}
 
