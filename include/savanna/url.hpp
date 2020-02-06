@@ -33,7 +33,7 @@ namespace savanna
 
 		std::string to_string(bool append_query = true, bool append_fragment = true)
 		{
-			std::string str = scheme() + "//" + host() + ":" + path();
+			std::string str = scheme() + "://" + host() + ":" + path();
 			if (append_query) {
 				str += "?" + query();
 			}
