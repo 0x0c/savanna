@@ -74,7 +74,6 @@ namespace savanna
 
 			void on_read(beast::error_code ec, std::size_t bytes_transferred)
 			{
-				std::cout << "on_read" << std::endl;
 				boost::ignore_unused(bytes_transferred);
 
 				if (ec) {
@@ -90,7 +89,6 @@ namespace savanna
 			void on_write(beast::error_code ec, std::size_t bytes_transferred)
 			{
 				boost::ignore_unused(bytes_transferred);
-				std::cout << "on_write" << std::endl;
 				if (ec) {
 					throw beast::system_error { ec };
 				}
@@ -99,7 +97,7 @@ namespace savanna
 		public:
 			session(savanna::url url)
 			    : url_(url)
-			    , scheme_(url_.scheme() + "://")
+			    , scheme_(url_.scheme())
 			    , tls_stream_(*shared_ws_ctx(), *shared_ssl_ctx())
 			    , raw_stream_(*shared_ws_ctx())
 			{
@@ -155,10 +153,14 @@ namespace savanna
 			void close()
 			{
 				if (scheme_ == url_scheme::wss) {
-					tls_stream_.close(beast::websocket::close_code::normal);
+                    if (tls_stream_.is_open()) {
+                        tls_stream_.close(beast::websocket::close_code::normal);
+                    }
 				}
 				else {
-					raw_stream_.close(beast::websocket::close_code::normal);
+                    if (raw_stream_.is_open()) {
+                        raw_stream_.close(beast::websocket::close_code::normal);
+                    }
 				}
 			}
 
