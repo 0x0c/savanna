@@ -5,7 +5,12 @@ set(CMAKE_CXX_STANDARD 11)
 
 add_executable(simple_client main.cpp)
 
+if (APPLE)
 find_package(openssl REQUIRED)
+else()
+find_package(OpenSSL REQUIRED)
+endif()
+
 target_link_libraries(simple_client
     savanna
     OpenSSL::SSL
