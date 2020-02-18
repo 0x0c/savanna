@@ -1,3 +1,6 @@
+*.xcodeproj
+**/Debug
+**/**.build
 example/client/simple_client
 example/websocket/simple_ws
 

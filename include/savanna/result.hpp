@@ -11,7 +11,7 @@ namespace savanna
 	{
 	public:
 		boost::optional<Response> response;
-		boost::optional<std::exception> error;
+		boost::optional<boost::system::system_error> error;
 
 		result_t(Response response)
 		    : response(response)
@@ -19,7 +19,7 @@ namespace savanna
 		{
 		}
 
-		result_t(std::exception error)
+		result_t(boost::system::system_error error)
 		    : response(boost::none)
 		    , error(error)
 		{
