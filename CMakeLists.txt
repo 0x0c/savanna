@@ -5,7 +5,11 @@ set(CMAKE_CXX_STANDARD 11)
 project(savanna VERSION 0.0.1 DESCRIPTION "boost-beast wrapper")
 add_library(savanna INTERFACE)
 
+if (APPLE)
 find_package(boost 1.70.0 REQUIRED)
+else()
+find_package(Boost 1.70.0 REQUIRED)
+endif()
 
 include_directories(${BOOST_ROOT})
 
