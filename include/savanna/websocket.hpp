@@ -29,57 +29,36 @@ namespace savanna
 
 	namespace websocket
 	{
-		using tls = beast::websocket::stream<beast::ssl_stream<tcp::socket>>;
-		using raw = beast::websocket::stream<tcp::socket>;
+		using tls = beast::ssl_stream<tcp::socket>;
+		using raw = tcp::socket;
 
+		enum state
+		{
+			unknown,
+			closed,
+			connected
+		};
+
+		template <typename T>
 		class session
 		{
-		public:
-			enum state
-			{
-				unknown,
-				closed,
-				connected
-			};
-
 		private:
 			beast::flat_buffer buffer_;
 			savanna::url url_;
 			std::string scheme_;
 			boost::optional<std::function<void(beast::flat_buffer &)>> on_message_handler_;
-			websocket::tls tls_stream_;
-			websocket::raw raw_stream_;
-			state current_state_ = unknown;
+			beast::websocket::stream<T> stream_;
+			websocket::state current_state_ = unknown;
 
-			void wait(websocket::raw &stream)
+			void make_connection(tcp::resolver::results_type const &results, std::string path)
 			{
-				stream.async_read(buffer_, beast::bind_front_handler(&session::on_read, this));
-			}
-
-			void wait(websocket::tls &stream)
-			{
-				stream.async_read(buffer_, beast::bind_front_handler(&session::on_read, this));
-			}
-
-			void make_connection(websocket::raw &stream, tcp::resolver::results_type const &results, std::string path)
-			{
-				net::connect(stream.next_layer(), results.begin(), results.end());
-				stream.set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
+				net::connect(beast::get_lowest_layer(stream_), results.begin(), results.end());
+				stream_.set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
 					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
 				}));
 
-				stream.handshake(url_.host(), path);
-			}
-
-			void make_connection(websocket::tls &stream, tcp::resolver::results_type const &results, std::string path)
-			{
-				net::connect(stream.next_layer().next_layer(), results.begin(), results.end());
-				stream.set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
-					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
-				}));
-
-				stream.next_layer().handshake(ssl::stream_base::client);
-				stream.handshake(url_.host(), path);
+				stream_.next_layer().handshake(ssl::stream_base::client);
+				stream_.handshake(url_.host(), path);
 			}
 
 			void on_read(beast::error_code ec, std::size_t bytes_transferred)
@@ -104,19 +83,18 @@ namespace savanna
 				}
 			}
 
-			void set_current_state(state s)
+			void set_current_state(websocket::state s)
 			{
 				current_state_ = s;
 				state_changed(s);
 			}
 
 		public:
-			std::function<void(state)> state_changed = [](state s) {};
-			session(savanna::url url)
+			std::function<void(websocket::state)> state_changed = [](websocket::state s) {};
+			session(T stream, savanna::url url)
 			    : url_(url)
 			    , scheme_(url_.scheme())
-			    , tls_stream_(*shared_ws_ctx(), *shared_ssl_ctx())
-			    , raw_stream_(*shared_ws_ctx())
+			    , stream_(std::move(stream))
 			{
 			}
 
@@ -125,7 +103,7 @@ namespace savanna
 				close();
 			}
 
-			state current_state()
+			websocket::state current_state()
 			{
 				return current_state_;
 			}
@@ -142,25 +120,14 @@ namespace savanna
 
 					auto resolver = shared_ws_resolver();
 					auto const results = resolver->resolve(url_.host(), url_.port_str());
-					if (scheme_ == url_scheme::wss) {
-						make_connection(tls_stream_, results, path);
-						tls_stream_.control_callback(control_callback);
-					}
-					else {
-						make_connection(raw_stream_, results, path);
-						raw_stream_.control_callback(control_callback);
-					}
+					make_connection(results, path);
+					stream_.control_callback(control_callback);
 					set_current_state(connected);
 
 					while (true) {
 						beast::flat_buffer buffer;
-						if (scheme_ == url_scheme::wss) {
-							tls_stream_.read(buffer);
-						}
-						else {
-							// wait(raw_stream_);
-							raw_stream_.read(buffer);
-						}
+						stream_.read(buffer);
+
 						if (on_message_handler_) {
 							auto handler = *on_message_handler_;
 							handler(buffer);
@@ -175,29 +142,16 @@ namespace savanna
 			boost::system::error_code send(std::string data)
 			{
 				boost::system::error_code ec;
-				if (scheme_ == url_scheme::wss) {
-					tls_stream_.write(net::buffer(data), ec);
-				}
-				else {
-					raw_stream_.write(net::buffer(data), ec);
-				}
+				stream_.write(net::buffer(data), ec);
 				return ec;
 			}
 
 			boost::system::error_code close()
 			{
 				boost::system::error_code ec;
-				if (scheme_ == url_scheme::wss) {
-					if (tls_stream_.is_open()) {
-						tls_stream_.close(beast::websocket::close_code::normal, ec);
-					}
+				if (stream_.is_open()) {
+					stream_.close(beast::websocket::close_code::normal, ec);
 				}
-				else {
-					if (raw_stream_.is_open()) {
-						raw_stream_.close(beast::websocket::close_code::normal, ec);
-					}
-				}
-
 				return ec;
 			}
 

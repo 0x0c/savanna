@@ -14,9 +14,14 @@ int main(int argc, char *argv[])
 	std::once_flag once;
 	std::call_once(once, savanna::load_root_cert, m2d::root_cert, *savanna::shared_ssl_ctx());
 
-	//    savanna::url url("ws://echo.websocket.org");
+	// savanna::url url("ws://echo.websocket.org");
+	// auto raw_stream = savanna::websocket::raw(*savanna::shared_ws_ctx());
+	// savanna::websocket::session<savanna::websocket::raw> session(std::move(stream), url);
+
 	savanna::url url("wss://echo.websocket.org");
-	savanna::websocket::session session(url);
+	auto stream = savanna::websocket::tls(*savanna::shared_ws_ctx(), *savanna::shared_ssl_ctx());
+	savanna::websocket::session<savanna::websocket::tls> session(std::move(stream), url);
+
 	session.on_message([](beast::flat_buffer buffer) {
 		std::cout << "received: " << beast::make_printable(buffer.data()) << std::endl;
 	});
@@ -31,7 +36,7 @@ int main(int argc, char *argv[])
 	t.detach();
 
 	int retry_count = 3;
-	while (session.current_state() != savanna::websocket::session::connected && retry_count > 0) {
+	while (session.current_state() != savanna::websocket::state::connected && retry_count > 0) {
 		std::cout << "connecting..." << std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		retry_count--;
