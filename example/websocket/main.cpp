@@ -15,12 +15,12 @@ int main(int argc, char *argv[])
 	std::call_once(once, savanna::load_root_cert, m2d::root_cert, *savanna::shared_ssl_ctx());
 
 	// savanna::url url("ws://echo.websocket.org");
-	// auto raw_stream = savanna::websocket::raw(*savanna::shared_ws_ctx());
-	// savanna::websocket::session<savanna::websocket::raw> session(std::move(stream), url);
+	// auto stream = savanna::websocket::raw_stream(*savanna::shared_ws_ctx());
+	// savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(stream), url);
 
 	savanna::url url("wss://echo.websocket.org");
-	auto stream = savanna::websocket::tls(*savanna::shared_ws_ctx(), *savanna::shared_ssl_ctx());
-	savanna::websocket::session<savanna::websocket::tls> session(std::move(stream), url);
+	auto stream = savanna::websocket::tls_stream(*savanna::shared_ws_ctx(), *savanna::shared_ssl_ctx());
+	savanna::websocket::session<savanna::websocket::tls_stream> session(std::move(stream), url);
 
 	session.on_message([](beast::flat_buffer buffer) {
 		std::cout << "received: " << beast::make_printable(buffer.data()) << std::endl;

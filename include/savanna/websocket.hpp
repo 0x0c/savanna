@@ -29,8 +29,8 @@ namespace savanna
 
 	namespace websocket
 	{
-		using tls = beast::ssl_stream<tcp::socket>;
-		using raw = tcp::socket;
+		using tls_stream = beast::websocket::stream<beast::ssl_stream<tcp::socket>>;
+		using raw_stream = beast::websocket::stream<tcp::socket>;
 
 		enum state
 		{
@@ -47,18 +47,28 @@ namespace savanna
 			savanna::url url_;
 			std::string scheme_;
 			boost::optional<std::function<void(beast::flat_buffer &)>> on_message_handler_;
-			beast::websocket::stream<T> stream_;
+			T stream_;
 			websocket::state current_state_ = unknown;
 
-			void make_connection(tcp::resolver::results_type const &results, std::string path)
+			void make_connection(websocket::raw_stream &stream, tcp::resolver::results_type const &results, std::string path)
 			{
-				net::connect(beast::get_lowest_layer(stream_), results.begin(), results.end());
-				stream_.set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
+				net::connect(beast::get_lowest_layer(stream), results.begin(), results.end());
+				stream.set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
 					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
 				}));
 
-				stream_.next_layer().handshake(ssl::stream_base::client);
-				stream_.handshake(url_.host(), path);
+				stream.handshake(url_.host(), path);
+			}
+
+			void make_connection(websocket::tls_stream &stream, tcp::resolver::results_type const &results, std::string path)
+			{
+				net::connect(beast::get_lowest_layer(stream), results.begin(), results.end());
+				stream.set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
+					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
+				}));
+
+				stream.next_layer().handshake(ssl::stream_base::client);
+				stream.handshake(url_.host(), path);
 			}
 
 			void on_read(beast::error_code ec, std::size_t bytes_transferred)
@@ -120,7 +130,7 @@ namespace savanna
 
 					auto resolver = shared_ws_resolver();
 					auto const results = resolver->resolve(url_.host(), url_.port_str());
-					make_connection(results, path);
+					make_connection(stream_, results, path);
 					stream_.control_callback(control_callback);
 					set_current_state(connected);
 
