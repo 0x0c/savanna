@@ -7,11 +7,11 @@ using namespace m2d;
 namespace beast = boost::beast;
 namespace http = beast::http;
 
-class get_yahoo_endpoint_t : public savanna::get_endpoint_t
+class get_yahoo_endpoint : public savanna::get_endpoint
 {
 public:
-	get_yahoo_endpoint_t(std::map<std::string, std::string> params)
-	    : get_endpoint_t(params) {};
+	get_yahoo_endpoint(std::map<std::string, std::string> params)
+	    : get_endpoint(params) {};
 
 	virtual std::string scheme()
 	{
@@ -29,30 +29,25 @@ public:
 	}
 };
 
-class post_localhost_endpoint_t : public savanna::post_endpoint_t
+class post_echo_endpoint : public savanna::post_endpoint
 {
 public:
-	post_localhost_endpoint_t(std::map<std::string, std::string> params)
-	    : post_endpoint_t(params) {};
+	post_echo_endpoint(std::map<std::string, std::string> params)
+	    : post_endpoint(params) {};
 
 	virtual std::string scheme()
 	{
-		return savanna::url_scheme::http;
+		return savanna::url_scheme::https;
 	}
 
 	virtual std::string host()
 	{
-		return "localhost";
+		return "postman-echo.com";
 	}
 
 	virtual std::string path()
 	{
-		return "/";
-	}
-
-	virtual int port()
-	{
-		return 8080;
+		return "/post";
 	}
 };
 
@@ -68,8 +63,8 @@ int main(int argc, char *argv[])
 	};
 	// auto endpoint = post_localhost_endpoint_t(params);
 	// savanna::request_t<post_localhost_endpoint_t> request(endpoint);
-	auto endpoint = get_yahoo_endpoint_t(params);
-	savanna::request_t<get_yahoo_endpoint_t> request(endpoint);
+	auto endpoint = post_echo_endpoint(params);
+    savanna::request<post_echo_endpoint> request(std::move(endpoint));
 	request.body = "BODY";
 	request.follow_location = true;
 	request.header_fields = {
@@ -78,16 +73,20 @@ int main(int argc, char *argv[])
 		{ "C", "c" }
 	};
 
-	auto session = savanna::url_session();
-	auto result = session.send<http::dynamic_body>(request);
-	if (result.error) {
-		auto e = *(result.error);
-		std::cout << "Error: " << e.what() << ", code: " << e.code() << std::endl;
-		return -1;
-	}
+    std::istream::char_type ch;
+    while ((ch = std::cin.get()) != 'q') {
+        auto session = savanna::url_session();
+        auto result = session.send<http::dynamic_body>(request);
+        if (result.error) {
+            auto e = *(result.error);
+            std::cout << "Error: " << e.what() << ", code: " << e.code() << std::endl;
+            return -1;
+        }
 
-	auto response = *(result.response);
-	std::cout << "Response: " << response << std::endl;
+        auto response = *(result.response);
+//        std::cout << "Got response: " << response << std::endl;
+        std::cout << "Got response" << std::endl;
+    }
 
 	return 0;
 }
