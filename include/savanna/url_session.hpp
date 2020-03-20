@@ -36,7 +36,7 @@ namespace savanna
 	{
 	private:
 		template <typename Stream, typename Body, typename Endpoint>
-		static http::response<Body> send_request(Stream &stream, savanna::url url, savanna::request_t<Endpoint> request)
+		static http::response<Body> send_request(Stream &stream, savanna::url url, savanna::request<Endpoint> request)
 		{
 			std::string path = url.to_string();
 
@@ -74,7 +74,7 @@ namespace savanna
 		}
 
 		template <typename Body, typename Endpoint>
-		static http::response<Body> send_request(savanna::request_t<Endpoint> request)
+		static http::response<Body> send_request(savanna::request<Endpoint> request)
 		{
 			auto url = request.endpoint.url();
 			auto const results = shared_resolver()->resolve(url.host(), url.port_str());
@@ -135,14 +135,14 @@ namespace savanna
 		url_session() = default;
 
 		template <typename Body, typename Endpoint>
-		savanna::result_t<http::response<Body>> send(savanna::request_t<Endpoint> request)
+		savanna::result<http::response<Body>> send(savanna::request<Endpoint> request)
 		{
-			static_assert(std::is_base_of<endpoint_t, Endpoint>::value, "Endpoint not derived from endpoint_t");
+			static_assert(std::is_base_of<endpoint, Endpoint>::value, "Endpoint not derived from endpoint");
 			try {
 				http::response<Body> response = send_request<Body, Endpoint>(std::move(request));
-				return result_t<http::response<Body>>(std::move(response));
+				return result<http::response<Body>>(std::move(response));
 			} catch (boost::system::system_error const &e) {
-				return result_t<http::response<Body>>(e);
+				return result<http::response<Body>>(e);
 			}
 		}
 	};
