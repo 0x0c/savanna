@@ -35,8 +35,20 @@ namespace savanna
 	class url_session
 	{
 	private:
+		static beast::tcp_stream *shared_tcp_stream()
+		{
+			static beast::tcp_stream stream(*shared_ctx());
+			return &stream;
+		}
+
+		static beast::ssl_stream<beast::tcp_stream> *shared_ssl_stream()
+		{
+			static beast::ssl_stream<beast::tcp_stream> stream(*shared_ctx(), *shared_ssl_ctx());
+			return &stream;
+		}
+
 		template <typename Stream, typename Body, typename Endpoint>
-		static http::response<Body> send_request(Stream &stream, savanna::url url, savanna::request_t<Endpoint> request)
+		static http::response<Body> send_request(Stream &stream, savanna::url url, savanna::request<Endpoint> request)
 		{
 			std::string path = url.to_string();
 
@@ -67,37 +79,38 @@ namespace savanna
 
 			if (response.result_int() >= 300 && response.result_int() < 400 && request.follow_location) {
 				auto location = response.base()["Location"].to_string();
-				response = send_request<Stream, Body>(stream, savanna::url(location), std::move(request));
+				auto new_url = savanna::url(location);
+				response = send_request<Stream, Body>(stream, std::move(new_url), std::move(request));
 			}
 
 			return response;
 		}
 
 		template <typename Body, typename Endpoint>
-		static http::response<Body> send_request(savanna::request_t<Endpoint> request)
+		static http::response<Body> send_request(savanna::request<Endpoint> request)
 		{
 			auto url = request.endpoint.url();
 			auto const results = shared_resolver()->resolve(url.host(), url.port_str());
 			if (url.scheme() == url_scheme::https) {
-				auto stream = beast::ssl_stream<beast::tcp_stream>(*shared_ctx(), *shared_ssl_ctx());
+				auto stream = shared_ssl_stream();
 
-				if (!SSL_set_tlsext_host_name(stream.native_handle(), url.host().c_str())) {
+                if (!SSL_set_tlsext_host_name(stream->native_handle(), url.host().c_str())) {
 					beast::error_code ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
 					if (ec != net::ssl::error::stream_truncated) {
 						throw beast::system_error { ec };
 					}
 				}
 
-				beast::get_lowest_layer(stream).expires_after(request.timeout_interval);
-				beast::get_lowest_layer(stream).connect(results);
+                beast::get_lowest_layer(*stream).expires_after(request.timeout_interval);
+                beast::get_lowest_layer(*stream).connect(results);
 
 				// Perform the SSL handshake
-				stream.handshake(ssl::stream_base::client);
+                stream->handshake(ssl::stream_base::client);
 
-				auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body, Endpoint>(stream, url, std::move(request));
+                auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body, Endpoint>(*stream, std::move(url), std::move(request));
 
 				beast::error_code ec;
-				stream.shutdown(ec);
+                stream->shutdown(ec);
 
 				if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
 					// Rationale:
@@ -115,12 +128,12 @@ namespace savanna
 				return response;
 			}
 			else {
-				auto stream = beast::tcp_stream(*shared_ctx());
-				stream.connect(results);
-				auto response = send_request<beast::tcp_stream, Body, Endpoint>(stream, url, std::move(request));
+				auto stream = shared_tcp_stream();
+                stream->connect(results);
+				auto response = send_request<beast::tcp_stream, Body, Endpoint>(*stream, url, std::move(request));
 
 				beast::error_code ec;
-				stream.socket().shutdown(tcp::socket::shutdown_both, ec);
+                stream->socket().shutdown(tcp::socket::shutdown_both, ec);
 
 				if (ec && ec != beast::errc::not_connected) {
 					// not_connected happens sometimes
@@ -135,14 +148,14 @@ namespace savanna
 		url_session() = default;
 
 		template <typename Body, typename Endpoint>
-		savanna::result_t<http::response<Body>> send(savanna::request_t<Endpoint> request)
+		savanna::result<http::response<Body>> send(savanna::request<Endpoint> request)
 		{
-			static_assert(std::is_base_of<endpoint_t, Endpoint>::value, "Endpoint not derived from endpoint_t");
+			static_assert(std::is_base_of<endpoint, Endpoint>::value, "Endpoint not derived from endpoint");
 			try {
 				http::response<Body> response = send_request<Body, Endpoint>(std::move(request));
-				return result_t<http::response<Body>>(std::move(response));
+				return result<http::response<Body>>(std::move(response));
 			} catch (boost::system::system_error const &e) {
-				return result_t<http::response<Body>>(e);
+				return result<http::response<Body>>(e);
 			}
 		}
 	};

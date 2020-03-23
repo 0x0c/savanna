@@ -13,7 +13,7 @@ namespace savanna
 	namespace beast = boost::beast;
 	namespace http = beast::http;
 
-	class endpoint_t
+	class endpoint
 	{
 	public:
 		virtual std::string scheme()
@@ -73,13 +73,13 @@ namespace savanna
 		}
 	};
 
-	class post_endpoint_t : public endpoint_t
+	class post_endpoint : public endpoint
 	{
 	private:
 		boost::optional<std::map<std::string, std::string>> params_;
 
 	public:
-		post_endpoint_t(boost::optional<std::map<std::string, std::string>> params)
+		post_endpoint(boost::optional<std::map<std::string, std::string>> params)
 		    : params_(params)
 		{
 		}
@@ -100,13 +100,13 @@ namespace savanna
 		}
 	};
 
-	class get_endpoint_t : public endpoint_t
+	class get_endpoint : public endpoint
 	{
 	private:
 		boost::optional<std::map<std::string, std::string>> query_;
 
 	public:
-		get_endpoint_t(boost::optional<std::map<std::string, std::string>> query)
+		get_endpoint(boost::optional<std::map<std::string, std::string>> query)
 		    : query_(query)
 		{
 		}
@@ -133,14 +133,14 @@ namespace savanna
 		}
 	};
 
-	class put_endpoint_t : public post_endpoint_t
+	class put_endpoint : public post_endpoint
 	{
 	private:
 		boost::optional<std::map<std::string, std::string>> params_;
 
 	public:
-		put_endpoint_t(boost::optional<std::map<std::string, std::string>> params)
-		    : post_endpoint_t(params)
+		put_endpoint(boost::optional<std::map<std::string, std::string>> params)
+		    : post_endpoint(params)
 		{
 		}
 
@@ -150,14 +150,14 @@ namespace savanna
 		}
 	};
 
-	class delete_endpoint_t : public post_endpoint_t
+	class delete_endpoint : public post_endpoint
 	{
 	private:
 		boost::optional<std::map<std::string, std::string>> params_;
 
 	public:
-		delete_endpoint_t(boost::optional<std::map<std::string, std::string>> params)
-		    : post_endpoint_t(params)
+		delete_endpoint(boost::optional<std::map<std::string, std::string>> params)
+		    : post_endpoint(params)
 		{
 		}
 

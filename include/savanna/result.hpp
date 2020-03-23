@@ -7,19 +7,19 @@ namespace m2d
 namespace savanna
 {
 	template <typename Response>
-	class result_t
+	class result
 	{
 	public:
 		boost::optional<Response> response;
 		boost::optional<boost::system::system_error> error;
 
-		result_t(Response response)
+		result(Response response)
 		    : response(response)
 		    , error(boost::none)
 		{
 		}
 
-		result_t(boost::system::system_error error)
+		result(boost::system::system_error error)
 		    : response(boost::none)
 		    , error(error)
 		{
