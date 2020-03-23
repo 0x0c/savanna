@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.0)
 add_definitions("-Wall")
 set(CMAKE_CXX_STANDARD 11)
 
-project(savanna VERSION 0.0.5 DESCRIPTION "boost-beast wrapper")
+project(savanna VERSION 0.0.6 DESCRIPTION "boost-beast wrapper")
 add_library(savanna INTERFACE)
 
 if (APPLE)
