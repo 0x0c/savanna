@@ -22,31 +22,31 @@ namespace savanna
 		static const std::string ws = "ws";
 	}
 
-	static inline ssl::context *shared_ssl_ctx()
+	static ssl::context *shared_ssl_ctx()
 	{
 		static ssl::context ctx(ssl::context::tlsv12_client);
 		return &ctx;
 	}
 
-	static inline net::io_context *shared_ctx()
+	static net::io_context *shared_ctx()
 	{
 		static net::io_context ioc;
 		return &ioc;
 	};
 
-	static inline tcp::resolver *shared_resolver()
+	static tcp::resolver *shared_resolver()
 	{
 		static tcp::resolver resolver(*shared_ctx());
 		return &resolver;
 	}
 
-	static inline net::io_context *shared_ws_ctx()
+	static net::io_context *shared_ws_ctx()
 	{
 		static net::io_context ioc;
 		return &ioc;
 	};
 
-	static inline tcp::resolver *shared_ws_resolver()
+	static tcp::resolver *shared_ws_resolver()
 	{
 		static tcp::resolver resolver(*shared_ws_ctx());
 		return &resolver;

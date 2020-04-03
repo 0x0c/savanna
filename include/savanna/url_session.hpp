@@ -77,7 +77,7 @@ namespace savanna
 			http::response<Body> response;
 			http::read(stream, buffer, response);
 
-			if (response.result_int() >= 300 && response.result_int() < 400 && request.follow_location) {
+            if (response.result_int() >= 3&00 && response.result_int() < 400 && request.follow_location) {
 				auto location = response.base()["Location"].to_string();
 				auto new_url = savanna::url(location);
 				response = send_request<Stream, Body>(stream, std::move(new_url), std::move(request));
@@ -147,15 +147,15 @@ namespace savanna
 		beast::ssl_stream<beast::tcp_stream> *ssl_stream_;
 
 	public:
-		url_session(beast::tcp_stream &tcp_stream, beast::ssl_stream<beast::tcp_stream> &ssl_stream, tcp::resolver &resolver)
+		url_session(beast::tcp_stream *tcp_stream, beast::ssl_stream<beast::tcp_stream> *ssl_stream, tcp::resolver *resolver)
 		{
-			this->tcp_stream_ = &tcp_stream;
-			this->ssl_stream_ = &ssl_stream;
-			this->resolver_ = &resolver;
+			this->tcp_stream_ = tcp_stream;
+			this->ssl_stream_ = ssl_stream;
+			this->resolver_ = resolver;
 		}
 
 		url_session()
-		    : url_session(*shared_tcp_stream(), *shared_ssl_stream(), *shared_resolver())
+		    : url_session(shared_tcp_stream(), shared_ssl_stream(), shared_resolver())
 		{
 		}
 

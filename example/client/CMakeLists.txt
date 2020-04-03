@@ -8,7 +8,7 @@ if (OpenSSL_FOUND)
     add_executable(simple_client main.cpp)
     target_link_libraries(simple_client
         savanna
-        ssl
-        crypto)
+        ${OPENSSL_CRYPTO_LIBRARY}
+        ${OPENSSL_SSL_LIBRARY})
     target_include_directories(simple_client INTERFACE ../../include)
 endif()

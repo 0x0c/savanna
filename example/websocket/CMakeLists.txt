@@ -8,7 +8,7 @@ if (OpenSSL_FOUND)
     add_executable(simple_ws main.cpp)
     target_link_libraries(simple_ws
         savanna
-        ssl
-        crypto)
+        ${OPENSSL_CRYPTO_LIBRARY}
+        ${OPENSSL_SSL_LIBRARY})
     target_include_directories(simple_ws INTERFACE ../../include)
 endif()
