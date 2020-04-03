@@ -2,7 +2,7 @@
 #include <iostream>
 #include <savanna.hpp>
 
-#include "cert.hpp"
+#include "../cert.hpp"
 
 using namespace m2d;
 namespace beast = boost::beast;
