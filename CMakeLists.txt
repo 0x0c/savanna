@@ -3,23 +3,20 @@ add_definitions("-Wall")
 set(CMAKE_CXX_STANDARD 11)
 
 project(savanna VERSION 0.0.6 DESCRIPTION "boost-beast wrapper")
-add_library(savanna INTERFACE)
 
-if (APPLE)
-find_package(boost 1.70.0 REQUIRED)
-else()
-find_package(Boost 1.70.0 REQUIRED)
+find_package(Boost 1.70.0 REQUIRED COMPONENTS system)
+if(Boost_FOUND)
+    add_library(savanna INTERFACE)
+    include_directories(${Boost_ROOT} ${Boost_INCLUDE_DIR})
+
+    target_include_directories(savanna INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
+
+    include(GNUInstallDirs)
+    install(TARGETS savanna
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    # Add sub-directories
+    add_subdirectory(example/client)
+    add_subdirectory(example/websocket)
 endif()
-
-include_directories(${BOOST_ROOT})
-
-target_include_directories(savanna INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
-
-include(GNUInstallDirs)
-install(TARGETS savanna
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-# Add sub-directories
-add_subdirectory(example/client)
-add_subdirectory(example/websocket)
