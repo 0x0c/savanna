@@ -1,7 +1,7 @@
 #include <iostream>
 #include <savanna.hpp>
 
-#include "cert.hpp"
+#include "../cert.hpp"
 
 using namespace m2d;
 namespace beast = boost::beast;
@@ -29,28 +29,6 @@ public:
 	}
 };
 
-class post_echo_endpoint : public savanna::post_endpoint
-{
-public:
-	post_echo_endpoint(std::map<std::string, std::string> params)
-	    : post_endpoint(params) {};
-
-	virtual std::string scheme()
-	{
-		return savanna::url_scheme::https;
-	}
-
-	virtual std::string host()
-	{
-		return "postman-echo.com";
-	}
-
-	virtual std::string path()
-	{
-		return "/post";
-	}
-};
-
 int main(int argc, char *argv[])
 {
 	std::once_flag once;
@@ -63,8 +41,8 @@ int main(int argc, char *argv[])
 	};
 	// auto endpoint = post_localhost_endpoint_t(params);
 	// savanna::request_t<post_localhost_endpoint_t> request(endpoint);
-	auto endpoint = post_echo_endpoint(params);
-    savanna::request<post_echo_endpoint> request(std::move(endpoint));
+	auto endpoint = get_yahoo_endpoint(params);
+	savanna::request<get_yahoo_endpoint> request(std::move(endpoint));
 	request.body = "BODY";
 	request.follow_location = true;
 	request.header_fields = {
@@ -73,20 +51,20 @@ int main(int argc, char *argv[])
 		{ "C", "c" }
 	};
 
-    std::istream::char_type ch;
-    while ((ch = std::cin.get()) != 'q') {
-        auto session = savanna::url_session();
-        auto result = session.send<http::dynamic_body>(request);
-        if (result.error) {
-            auto e = *(result.error);
-            std::cout << "Error: " << e.what() << ", code: " << e.code() << std::endl;
-            return -1;
-        }
+	std::istream::char_type ch;
+	while ((ch = std::cin.get()) != 'q') {
+		auto session = savanna::url_session();
+		auto result = session.send<http::dynamic_body>(request);
+		if (result.error) {
+			auto e = *(result.error);
+			std::cout << "Error: " << e.what() << ", code: " << e.code() << std::endl;
+			return -1;
+		}
 
-        auto response = *(result.response);
-//        std::cout << "Got response: " << response << std::endl;
-        std::cout << "Got response" << std::endl;
-    }
+		auto response = *(result.response);
+		std::cout << "Got response: " << response << std::endl;
+		// std::cout << "Got response" << std::endl;
+	}
 
 	return 0;
 }
