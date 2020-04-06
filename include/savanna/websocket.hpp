@@ -43,6 +43,7 @@ namespace savanna
 		class session
 		{
 		private:
+			tcp::resolver ws_resolver_;
 			beast::flat_buffer buffer_;
 			savanna::url url_;
 			std::string scheme_;
@@ -101,8 +102,9 @@ namespace savanna
 
 		public:
 			std::function<void(websocket::state)> state_changed = [](websocket::state s) {};
-			session(T stream, savanna::url url)
-			    : url_(url)
+			session(tcp::resolver resolver, T stream, savanna::url url)
+			    : ws_resolver_(std::move(resolver))
+			    , url_(url)
 			    , scheme_(url_.scheme())
 			    , stream_(std::move(stream))
 			{
@@ -128,8 +130,7 @@ namespace savanna
 						boost::ignore_unused(kind, payload);
 					};
 
-					auto resolver = shared_ws_resolver();
-					auto const results = resolver->resolve(url_.host(), url_.port_str());
+					auto const results = ws_resolver_.resolve(url_.host(), url_.port_str());
 					make_connection(stream_, results, path);
 					stream_.control_callback(control_callback);
 					set_current_state(connected);
