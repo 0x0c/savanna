@@ -65,7 +65,7 @@ namespace savanna
 			http::response<Body> response;
 			http::read(stream, buffer, response);
 
-			if ((response.result_int() >= 3) & 00 && response.result_int() < 400 && request.follow_location) {
+			if ((response.result_int() >= 300) && response.result_int() < 400 && request.follow_location) {
 				auto location = response.base()["Location"].to_string();
 				auto new_url = savanna::url(location);
 				response = send_request<Stream, Body>(stream, std::move(new_url), std::move(request));
