@@ -20,9 +20,9 @@ int main(int argc, char *argv[])
 	net::io_context ctx;
 	tcp::resolver resolver(ctx);
 	
-    // savanna::url url("ws://echo.websocket.org");
+  	// savanna::url url("ws://echo.websocket.org");
 	// auto stream = savanna::websocket::raw_stream(ctx);
-	// savanna::websocket::session<savanna::websocket::raw_stream> session(resolver, stream, url);
+	// savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(resolver), std::move(stream), url);
 
 	savanna::url url("wss://echo.websocket.org");
 	auto stream = savanna::websocket::tls_stream(ctx, ssl_ctx);
