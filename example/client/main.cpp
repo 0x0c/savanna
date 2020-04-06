@@ -42,8 +42,6 @@ int main(int argc, char *argv[])
 		{ "Tom", "1400" },
 		{ "Harry", "800" }
 	};
-	// auto endpoint = post_localhost_endpoint_t(params);
-	// savanna::request_t<post_localhost_endpoint_t> request(endpoint);
 	auto endpoint = get_yahoo_endpoint(params);
 	savanna::request<get_yahoo_endpoint> request(std::move(endpoint));
 	request.body = "BODY";
