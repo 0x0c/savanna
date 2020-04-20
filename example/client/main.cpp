@@ -74,7 +74,7 @@ int main(int argc, char *argv[])
 	request.body = "BODY";
 	request.follow_location = true;
 
-	// see existing http header fields
+	// see also
 	// https://www.boost.org/doc/libs/1_72_0/boost/beast/http/field.hpp
 	request.header_fields = {
 		{ "A", "a" },
