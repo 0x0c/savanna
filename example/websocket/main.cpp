@@ -2,25 +2,31 @@
 #include <iostream>
 #include <savanna.hpp>
 
-#include "cert.hpp"
+#include "../cert.hpp"
 
 using namespace m2d;
 namespace beast = boost::beast;
 namespace http = beast::http;
 namespace net = boost::asio;
+namespace ssl = net::ssl;
+using tcp = net::ip::tcp;
 
 int main(int argc, char *argv[])
 {
+	ssl::context ssl_ctx(ssl::context::tlsv12_client);
 	std::once_flag once;
-	std::call_once(once, savanna::load_root_cert, m2d::root_cert, *savanna::shared_ssl_ctx());
+	std::call_once(once, savanna::load_root_cert, m2d::root_cert, ssl_ctx);
 
-	// savanna::url url("ws://echo.websocket.org");
-	// auto stream = savanna::websocket::raw_stream(*savanna::shared_ws_ctx());
-	// savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(stream), url);
+	net::io_context ctx;
+	tcp::resolver resolver(ctx);
+	
+  	// savanna::url url("ws://echo.websocket.org");
+	// auto stream = savanna::websocket::raw_stream(ctx);
+	// savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(resolver), std::move(stream), url);
 
 	savanna::url url("wss://echo.websocket.org");
-	auto stream = savanna::websocket::tls_stream(*savanna::shared_ws_ctx(), *savanna::shared_ssl_ctx());
-	savanna::websocket::session<savanna::websocket::tls_stream> session(std::move(stream), url);
+	auto stream = savanna::websocket::tls_stream(ctx, ssl_ctx);
+	savanna::websocket::session<savanna::websocket::tls_stream> session(std::move(resolver), std::move(stream), url);
 
 	session.on_message([](beast::flat_buffer buffer) {
 		std::cout << "received: " << beast::make_printable(buffer.data()) << std::endl;

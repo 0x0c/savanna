@@ -35,20 +35,8 @@ namespace savanna
 	class url_session
 	{
 	private:
-		static beast::tcp_stream *shared_tcp_stream()
-		{
-			static beast::tcp_stream stream(*shared_ctx());
-			return &stream;
-		}
-
-		static beast::ssl_stream<beast::tcp_stream> *shared_ssl_stream()
-		{
-			static beast::ssl_stream<beast::tcp_stream> stream(*shared_ctx(), *shared_ssl_ctx());
-			return &stream;
-		}
-
 		template <typename Stream, typename Body, typename Endpoint>
-		static http::response<Body> send_request(Stream &stream, savanna::url url, savanna::request<Endpoint> request)
+		http::response<Body> send_request(Stream &stream, savanna::url url, savanna::request<Endpoint> request)
 		{
 			std::string path = url.to_string();
 
@@ -77,7 +65,7 @@ namespace savanna
 			http::response<Body> response;
 			http::read(stream, buffer, response);
 
-			if (response.result_int() >= 300 && response.result_int() < 400 && request.follow_location) {
+			if ((response.result_int() >= 300) && response.result_int() < 400 && request.follow_location) {
 				auto location = response.base()["Location"].to_string();
 				auto new_url = savanna::url(location);
 				response = send_request<Stream, Body>(stream, std::move(new_url), std::move(request));
@@ -87,30 +75,28 @@ namespace savanna
 		}
 
 		template <typename Body, typename Endpoint>
-		static http::response<Body> send_request(savanna::request<Endpoint> request)
+		http::response<Body> send_request(savanna::request<Endpoint> request)
 		{
 			auto url = request.endpoint.url();
-			auto const results = shared_resolver()->resolve(url.host(), url.port_str());
+			auto const results = resolver_.resolve(url.host(), url.port_str());
 			if (url.scheme() == url_scheme::https) {
-				auto stream = shared_ssl_stream();
-
-                if (!SSL_set_tlsext_host_name(stream->native_handle(), url.host().c_str())) {
+				if (!SSL_set_tlsext_host_name(ssl_stream_.native_handle(), url.host().c_str())) {
 					beast::error_code ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
 					if (ec != net::ssl::error::stream_truncated) {
 						throw beast::system_error { ec };
 					}
 				}
 
-                beast::get_lowest_layer(*stream).expires_after(request.timeout_interval);
-                beast::get_lowest_layer(*stream).connect(results);
+				beast::get_lowest_layer(ssl_stream_).expires_after(request.timeout_interval);
+				beast::get_lowest_layer(ssl_stream_).connect(results);
 
 				// Perform the SSL handshake
-                stream->handshake(ssl::stream_base::client);
+				ssl_stream_.handshake(ssl::stream_base::client);
 
-                auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body, Endpoint>(*stream, std::move(url), std::move(request));
+				auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body, Endpoint>(ssl_stream_, std::move(url), std::move(request));
 
 				beast::error_code ec;
-                stream->shutdown(ec);
+				ssl_stream_.shutdown(ec);
 
 				if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
 					// Rationale:
@@ -128,12 +114,11 @@ namespace savanna
 				return response;
 			}
 			else {
-				auto stream = shared_tcp_stream();
-                stream->connect(results);
-				auto response = send_request<beast::tcp_stream, Body, Endpoint>(*stream, url, std::move(request));
+				tcp_stream_.connect(results);
+				auto response = send_request<beast::tcp_stream, Body, Endpoint>(tcp_stream_, url, std::move(request));
 
 				beast::error_code ec;
-                stream->socket().shutdown(tcp::socket::shutdown_both, ec);
+				tcp_stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
 
 				if (ec && ec != beast::errc::not_connected) {
 					// not_connected happens sometimes
@@ -144,8 +129,18 @@ namespace savanna
 			}
 		}
 
+	private:
+		tcp::resolver resolver_;
+		beast::tcp_stream tcp_stream_;
+		beast::ssl_stream<beast::tcp_stream> ssl_stream_;
+
 	public:
-		url_session() = default;
+		url_session(beast::tcp_stream tcp_stream, beast::ssl_stream<beast::tcp_stream> ssl_stream, tcp::resolver resolver)
+		    : resolver_(std::move(resolver))
+		    , tcp_stream_(std::move(tcp_stream))
+		    , ssl_stream_(std::move(ssl_stream))
+		{
+		}
 
 		template <typename Body, typename Endpoint>
 		savanna::result<http::response<Body>> send(savanna::request<Endpoint> request)

@@ -13,7 +13,7 @@ namespace savanna
 		boost::system::error_code ec;
 		ctx.add_certificate_authority(boost::asio::buffer(cert.data(), cert.size()), ec);
 		if (ec) {
-			throw beast::system_error{ ec };
+			throw beast::system_error { ec };
 		}
 
 		ctx.set_verify_mode(ssl::verify_peer);

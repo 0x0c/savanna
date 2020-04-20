@@ -21,35 +21,5 @@ namespace savanna
 		static const std::string wss = "wss";
 		static const std::string ws = "ws";
 	}
-
-	static ssl::context *shared_ssl_ctx()
-	{
-		static ssl::context ctx(ssl::context::tlsv12_client);
-		return &ctx;
-	}
-
-	static net::io_context *shared_ctx()
-	{
-		static net::io_context ioc;
-		return &ioc;
-	};
-
-	static tcp::resolver *shared_resolver()
-	{
-		static tcp::resolver resolver(*shared_ctx());
-		return &resolver;
-	}
-
-	static net::io_context *shared_ws_ctx()
-	{
-		static net::io_context ioc;
-		return &ioc;
-	};
-
-	static tcp::resolver *shared_ws_resolver()
-	{
-		static tcp::resolver resolver(*shared_ws_ctx());
-		return &resolver;
-	}
 }
 }
