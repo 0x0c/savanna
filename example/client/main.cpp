@@ -43,6 +43,9 @@ int main(int argc, char *argv[])
 	savanna::request<get_yahoo_endpoint> request(std::move(endpoint));
 	request.body = "BODY";
 	request.follow_location = true;
+	
+	// see existing http header fields
+	// https://www.boost.org/doc/libs/1_72_0/boost/beast/http/field.hpp
 	request.header_fields = {
 		{ "A", "a" },
 		{ "B", "b" },
