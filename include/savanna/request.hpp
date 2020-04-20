@@ -7,6 +7,11 @@ namespace m2d
 {
 namespace savanna
 {
+	static std::string to_string(http::field field)
+	{
+		return std::string(http::to_string(field));
+	}
+
 	template <typename Endpoint>
 	class request
 	{
