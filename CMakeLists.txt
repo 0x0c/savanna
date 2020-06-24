@@ -12,9 +12,11 @@ if(Boost_FOUND)
     target_include_directories(savanna INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
 
     include(GNUInstallDirs)
-    install(TARGETS savanna
+    install(
+        TARGETS savanna
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
 
     # Add sub-directories
     add_subdirectory(example/client)
