@@ -25,7 +25,7 @@ jobs:
     # Install dependencies
     - name: Install depndencies
       run: | 
-        sudo apt install -y boost openssl
+        sudo apt install -y libboost-all-dev openssl
 
     # Build
     - name: run-cmake
