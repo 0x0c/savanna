@@ -26,7 +26,7 @@ jobs:
         curl -OL https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.gz
         tar -zxvf boost_1_70_0.tar.gz
         cd boost_1_70_0
-        bootstrap.sh
+        ./bootstrap.sh
         ./b2 install -j2 --prefix=$HOME/opt
         cd
 
