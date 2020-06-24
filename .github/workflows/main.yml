@@ -19,13 +19,19 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
-
     # Install dependencies
     - name: Install depndencies
       run: | 
-        sudo apt install -y libboost1.70-dev openssl cmake
+        sudo apt install -y openssl cmake
+        curl -OL https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.gz
+        tar -zxvf boost_1_70_0.tar.gz
+        cd boost_1_70_0
+        bootstrap.sh
+        ./b2 install -j2 --prefix=$HOME/opt
+        cd
+
+    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+    - uses: actions/checkout@v2
 
     # Build
     - name: run-cmake
