@@ -31,3 +31,4 @@ jobs:
     - name: run-cmake
       run: | 
         cmake .
+        make
