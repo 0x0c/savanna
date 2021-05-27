@@ -1,5 +1,7 @@
 #include <iostream>
 #include <savanna.hpp>
+#include <chrono>
+#include <thread>
 
 #include "../cert.hpp"
 
@@ -9,6 +11,7 @@ namespace http = beast::http;
 namespace net = boost::asio;
 namespace ssl = net::ssl;
 using tcp = net::ip::tcp;
+using std::this_thread::sleep_for;
 
 class get_yahoo_endpoint : public savanna::get_endpoint
 {
@@ -85,21 +88,24 @@ int main(int argc, char *argv[])
 	ssl::context ssl_ctx(ssl::context::tlsv12_client);
 	std::once_flag once;
 	std::call_once(once, savanna::load_root_cert, m2d::root_cert(), ssl_ctx);
+	auto async_session = savanna::async_url_session(std::move(ssl_ctx));
 
-	auto session = savanna::url_session(std::move(ssl_ctx));
-
-	std::istream::char_type ch;
-	while ((ch = std::cin.get()) != 'q') {
-		auto result = session.send<http::dynamic_body>(request);
+	bool done = false;
+	std::cout << "Start async request..." << std::endl;
+	auto executor = async_session.send<http::dynamic_body>(request, [&done](savanna::result<http::response<http::dynamic_body>> result) {
 		if (result.error) {
 			auto e = *(result.error);
 			std::cout << "Error: " << e.what() << ", code: " << e.code() << std::endl;
-			return -1;
+			done = true;
+			return;
 		}
 
 		auto response = *(result.response);
-		std::cout << "Got response: " << response << std::endl;
-	}
+//		std::cout << "Got response: " << response << std::endl;
+        std::cout << "Got response" << std::endl;
+		done = true;
+	});
+	std::cout << "Done" << std::endl;
 
 	return 0;
 }
