@@ -230,7 +230,7 @@ namespace savanna
 			update_request(original_request_.endpoint.build_url_str(), original_request_.endpoint.host());
 		}
 
-		void run()
+		void send()
 		{
 			if (already_run_ == false) {
 				auto url = original_request_.endpoint.url();
@@ -262,12 +262,10 @@ namespace savanna
 		}
 
 		template <typename Body, typename Endpoint>
-		std::shared_ptr<savanna::async_request_executor<Body, Endpoint>> send(savanna::request<Endpoint> request, std::function<void(savanna::result<http::response<Body>>)> completion)
+		std::shared_ptr<savanna::async_request_executor<Body, Endpoint>> prepare(savanna::request<Endpoint> request, std::function<void(savanna::result<http::response<Body>>)> completion)
 		{
 			static_assert(std::is_base_of<savanna::endpoint, Endpoint>::value, "Endpoint not derived from endpoint");
-			auto executor = std::make_shared<savanna::async_request_executor<Body, Endpoint>>(std::move(request), ssl_ctx_, std::move(completion));
-			executor->run();
-			return executor;
+			return std::make_shared<savanna::async_request_executor<Body, Endpoint>>(std::move(request), ssl_ctx_, std::move(completion));
 		}
 	};
 }
