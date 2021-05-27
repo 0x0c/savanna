@@ -146,7 +146,7 @@ namespace savanna
 					}
 				} catch (boost::wrapexcept<boost::system::system_error> e) {
 					set_current_state(unknown);
-					throw e;
+					throw std::move(e);
 				}
 			}
 
