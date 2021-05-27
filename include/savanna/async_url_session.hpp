@@ -230,13 +230,16 @@ namespace savanna
 			update_request(original_request_.endpoint.build_url_str(), original_request_.endpoint.host());
 		}
 
-		void send()
+		bool send()
 		{
 			if (already_run_ == false) {
+				already_run_ = true;
 				auto url = original_request_.endpoint.url();
 				run(url.host(), url.port_str());
 				ctx_->run();
+				return true;
 			}
+			return false;
 		}
 
 		void cancel()

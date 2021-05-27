@@ -1,6 +1,6 @@
+#include <chrono>
 #include <iostream>
 #include <savanna.hpp>
-#include <chrono>
 #include <thread>
 
 #include "../cert.hpp"
@@ -99,14 +99,14 @@ int main(int argc, char *argv[])
 		}
 
 		auto response = *(result.response);
-//		std::cout << "Got response: " << response << std::endl;
-        std::cout << "Got response" << std::endl;
+		//		std::cout << "Got response: " << response << std::endl;
+		std::cout << "Got response" << std::endl;
 	});
-    std::cout << "Wait..." << std::endl;
-    std::thread t([&]{
-        executor->send();
-    });
-    t.join();
+	std::cout << "Wait..." << std::endl;
+	std::thread t([&] {
+		executor->send();
+	});
+	t.join();
 	std::cout << "Done" << std::endl;
 
 	return 0;
