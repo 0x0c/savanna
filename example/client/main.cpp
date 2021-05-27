@@ -87,11 +87,7 @@ int main(int argc, char *argv[])
 	std::once_flag once;
 	std::call_once(once, savanna::load_root_cert, m2d::root_cert, ssl_ctx);
 
-	net::io_context ctx;
-	tcp::resolver resolver(ctx);
-	beast::tcp_stream tcp_stream(ctx);
-	beast::ssl_stream<beast::tcp_stream> ssl_stream(ctx, ssl_ctx);
-	auto session = savanna::url_session(std::move(tcp_stream), std::move(ssl_stream), std::move(resolver));
+	auto session = savanna::url_session(std::move(ssl_ctx));
 
 	std::istream::char_type ch;
 	while ((ch = std::cin.get()) != 'q') {
@@ -103,8 +99,7 @@ int main(int argc, char *argv[])
 		}
 
 		auto response = *(result.response);
-		// std::cout << "Got response: " << response << std::endl;
-		std::cout << "Got response" << std::endl;
+        std::cout << "Got response: " << response << std::endl;
 	}
 
 	return 0;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "savanna/async_url_session.hpp"
 #include "savanna/constant.hpp"
 #include "savanna/endpoint.hpp"
 #include "savanna/request.hpp"

@@ -18,5 +18,18 @@ namespace savanna
 
 		ctx.set_verify_mode(ssl::verify_peer);
 	}
+
+	static inline std::string param_str(std::map<std::string, std::string> &params)
+	{
+		std::string param_str;
+		for (auto p = params.begin(); p != params.end(); ++p) {
+			param_str += p->first;
+			param_str += "=";
+			param_str += p->second;
+			param_str += "&";
+		}
+		param_str.pop_back();
+		return param_str;
+	}
 }
 }
