@@ -15,12 +15,12 @@ int main(int argc, char *argv[])
 {
 	ssl::context ssl_ctx(ssl::context::tlsv12_client);
 	std::once_flag once;
-	std::call_once(once, savanna::load_root_cert, m2d::root_cert, ssl_ctx);
+	std::call_once(once, savanna::load_root_cert, m2d::root_cert(), ssl_ctx);
 
 	net::io_context ctx;
 	tcp::resolver resolver(ctx);
-	
-  	// savanna::url url("ws://echo.websocket.org");
+
+	// savanna::url url("ws://echo.websocket.org");
 	// auto stream = savanna::websocket::raw_stream(ctx);
 	// savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(resolver), std::move(stream), url);
 
