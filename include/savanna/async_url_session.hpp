@@ -170,12 +170,15 @@ namespace savanna
 				if (ec && ec != beast::errc::not_connected) {
 					completion_(savanna::result<http::response<Body>>(beast::system_error { ec }));
 				}
+				else {
+					completion_(savanna::result<http::response<Body>>(std::move(response_)));
+				}
 			}
 		}
 
 		void on_shutdown(beast::error_code ec)
 		{
-			if (ec == net::error::eof) {
+			if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
 				// Rationale:
 				// http://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
 				ec = {};
