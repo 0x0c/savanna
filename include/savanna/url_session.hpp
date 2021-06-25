@@ -9,6 +9,8 @@
 #include <boost/beast/ssl.hpp>
 #include <boost/beast/version.hpp>
 
+#include "util.hpp"
+
 namespace m2d
 {
 namespace savanna
@@ -18,19 +20,6 @@ namespace savanna
 	namespace net = boost::asio;
 	namespace ssl = net::ssl;
 	using tcp = net::ip::tcp;
-
-	static inline std::string param_str(std::map<std::string, std::string> &params)
-	{
-		std::string param_str;
-		for (auto p = params.begin(); p != params.end(); ++p) {
-			param_str += p->first;
-			param_str += "=";
-			param_str += p->second;
-			param_str += "&";
-		}
-		param_str.pop_back();
-		return param_str;
-	}
 
 	class url_session
 	{
@@ -51,7 +40,7 @@ namespace savanna
 			if (request.endpoint.method() != http::verb::get) {
 				if (request.endpoint.params()) {
 					auto p = *request.endpoint.params();
-					req.body() = request.body + param_str(p);
+					req.body() = request.body + savanna::param_str(p);
 					req.prepare_payload();
 				}
 				else {
@@ -78,25 +67,25 @@ namespace savanna
 		http::response<Body> send_request(savanna::request<Endpoint> request)
 		{
 			auto url = request.endpoint.url();
-			auto const results = resolver_.resolve(url.host(), url.port_str());
+			auto const results = resolver_->resolve(url.host(), url.port_str());
 			if (url.scheme() == url_scheme::https) {
-				if (!SSL_set_tlsext_host_name(ssl_stream_.native_handle(), url.host().c_str())) {
+				if (!SSL_set_tlsext_host_name(ssl_stream_->native_handle(), url.host().c_str())) {
 					beast::error_code ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
 					if (ec != net::ssl::error::stream_truncated) {
 						throw beast::system_error { ec };
 					}
 				}
 
-				beast::get_lowest_layer(ssl_stream_).expires_after(request.timeout_interval);
-				beast::get_lowest_layer(ssl_stream_).connect(results);
+				beast::get_lowest_layer(*ssl_stream_).expires_after(request.timeout_interval);
+				beast::get_lowest_layer(*ssl_stream_).connect(results);
 
 				// Perform the SSL handshake
-				ssl_stream_.handshake(ssl::stream_base::client);
+				ssl_stream_->handshake(ssl::stream_base::client);
 
-				auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body, Endpoint>(ssl_stream_, std::move(url), std::move(request));
+				auto response = send_request<beast::ssl_stream<beast::tcp_stream>, Body, Endpoint>(*ssl_stream_, std::move(url), std::move(request));
 
 				beast::error_code ec;
-				ssl_stream_.shutdown(ec);
+				ssl_stream_->shutdown(ec);
 
 				if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
 					// Rationale:
@@ -114,11 +103,11 @@ namespace savanna
 				return response;
 			}
 			else {
-				tcp_stream_.connect(results);
-				auto response = send_request<beast::tcp_stream, Body, Endpoint>(tcp_stream_, url, std::move(request));
+				tcp_stream_->connect(results);
+				auto response = send_request<beast::tcp_stream, Body, Endpoint>(*tcp_stream_, url, std::move(request));
 
 				beast::error_code ec;
-				tcp_stream_.socket().shutdown(tcp::socket::shutdown_both, ec);
+				tcp_stream_->socket().shutdown(tcp::socket::shutdown_both, ec);
 
 				if (ec && ec != beast::errc::not_connected) {
 					// not_connected happens sometimes
@@ -130,16 +119,18 @@ namespace savanna
 		}
 
 	private:
-		tcp::resolver resolver_;
-		beast::tcp_stream tcp_stream_;
-		beast::ssl_stream<beast::tcp_stream> ssl_stream_;
+		std::shared_ptr<net::io_context> ctx_;
+		std::shared_ptr<tcp::resolver> resolver_;
+		std::shared_ptr<beast::tcp_stream> tcp_stream_;
+		std::shared_ptr<beast::ssl_stream<beast::tcp_stream>> ssl_stream_;
 
 	public:
-		url_session(beast::tcp_stream tcp_stream, beast::ssl_stream<beast::tcp_stream> ssl_stream, tcp::resolver resolver)
-		    : resolver_(std::move(resolver))
-		    , tcp_stream_(std::move(tcp_stream))
-		    , ssl_stream_(std::move(ssl_stream))
+		url_session(ssl::context ssl_ctx)
 		{
+			ctx_ = std::make_shared<net::io_context>();
+			resolver_ = std::make_shared<tcp::resolver>(*ctx_),
+			tcp_stream_ = std::make_shared<beast::tcp_stream>(*ctx_),
+			ssl_stream_ = std::make_shared<beast::ssl_stream<beast::tcp_stream>>(*ctx_, ssl_ctx);
 		}
 
 		template <typename Body, typename Endpoint>
