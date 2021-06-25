@@ -6,9 +6,9 @@ name: CI
 # events but only for the master branch
 on:
   push:
-    branches: [ master ]
+    branches: [ develop ]
   pull_request:
-    branches: [ master ]
+    branches: [ develop ]
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -19,9 +19,22 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+    # Install dependencies
+    - name: Install depndencies
+      run: | 
+        sudo apt install -y openssl cmake
+        curl -OL https://dl.bintray.com/boostorg/release/1.70.0/source/boost_1_70_0.tar.gz
+        tar -zxvf boost_1_70_0.tar.gz
+        cd boost_1_70_0
+        ./bootstrap.sh
+        ./b2 install -j2 --prefix=$HOME/opt
+        cd
+
     # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
     - uses: actions/checkout@v2
 
     # Build
     - name: run-cmake
-      uses: lukka/run-cmake@v2.5
+      run: | 
+        cmake .
+        make

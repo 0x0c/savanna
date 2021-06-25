@@ -2,6 +2,8 @@
 
 #include <regex>
 
+#include "constant.hpp"
+
 namespace m2d
 {
 namespace savanna

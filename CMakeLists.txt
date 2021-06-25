@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.0)
 add_definitions("-Wall")
 set(CMAKE_CXX_STANDARD 11)
 
-project(savanna VERSION 0.0.8 DESCRIPTION "boost-beast wrapper")
+project(savanna VERSION 0.0.9 DESCRIPTION "boost-beast wrapper")
 
 find_package(Boost 1.70.0 REQUIRED COMPONENTS system)
 if(Boost_FOUND)
@@ -12,11 +12,14 @@ if(Boost_FOUND)
     target_include_directories(savanna INTERFACE ${CMAKE_CURRENT_LIST_DIR}/include)
 
     include(GNUInstallDirs)
-    install(TARGETS savanna
+    install(
+        TARGETS savanna
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
 
     # Add sub-directories
     add_subdirectory(example/client)
+    add_subdirectory(example/async_client)
     add_subdirectory(example/websocket)
 endif()
