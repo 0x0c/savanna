@@ -120,7 +120,7 @@ namespace savanna
 				return current_state_;
 			}
 
-			void run(std::string path = "/")
+			boost::system::error_code run(std::string path = "/")
 			{
 				try {
 					auto control_callback = [this](beast::websocket::frame_type kind, boost::string_view payload) {
@@ -135,19 +135,23 @@ namespace savanna
 					stream_.control_callback(control_callback);
 					set_current_state(connected);
 
-					while (true) {
-						beast::flat_buffer buffer;
-						stream_.read(buffer);
-
-						if (on_message_handler_) {
-							auto handler = *on_message_handler_;
-							handler(buffer);
-						}
-					}
 				} catch (boost::wrapexcept<boost::system::system_error> e) {
 					set_current_state(unknown);
 					throw std::move(e);
 				}
+				boost::system::error_code ec;
+				while (true) {
+					beast::flat_buffer buffer;
+					stream_.read(buffer, ec);
+					if (ec.failed()){
+						break;
+					}
+					if (on_message_handler_) {
+						auto handler = *on_message_handler_;
+						handler(buffer);
+					}
+				}
+				return ec;
 			}
 
 			boost::system::error_code send(std::string data)
