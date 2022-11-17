@@ -12,6 +12,7 @@
 #include <boost/beast/version.hpp>
 #include <functional>
 #include <memory>
+#include <mutex>
 
 #include "endpoint.hpp"
 #include "request.hpp"
@@ -24,6 +25,7 @@ namespace m2d
 {
 namespace savanna
 {
+
 	namespace beast = boost::beast;
 	namespace http = beast::http;
 	namespace net = boost::asio;
@@ -44,21 +46,21 @@ namespace savanna
 		virtual void on_read_l(beast::error_code ec, std::size_t bytes_transferred) = 0;
 		virtual void on_shutdown_l(beast::error_code ec) = 0;
 	public:
-		virtual ~interface(){}
+		virtual ~interface()= default;
 		virtual void error_callback(beast::error_code ec) = 0;
 		void on_resolve(beast::error_code ec, tcp::resolver::results_type results){
 			if (ec) {
 				error_callback(ec);
 				return;
 			}
-			on_resolve_l(ec, results);
+			on_resolve_l(ec, std::move(results));
 		}
 		void on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type type){
 			if (ec) {
 				error_callback(ec);
 				return;
 			}
-			on_connect_l(ec, type);
+			on_connect_l(ec, std::move(type));
 		}
 		void on_handshake(beast::error_code ec){
 			if (ec) {
@@ -84,6 +86,11 @@ namespace savanna
 			on_read_l(ec, bytes_transferred);
 		}
 		void on_shutdown(beast::error_code ec){
+			if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
+				// Rationale:
+				// http://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
+				ec = {};
+			}
 			if (ec) {
 				error_callback(ec);
 				return;
@@ -91,7 +98,7 @@ namespace savanna
 			on_shutdown_l(ec);
 		}
 		virtual void run(std::string host, std::string port_str, http::request<http::string_body> request) = 0;
-
+		virtual void cancel() = 0;
 	};
 	template <class Body>
 	class http_logic: public interface{
@@ -103,46 +110,38 @@ namespace savanna
 		http::response<Body> response_;
 		http::request<http::string_body> request_;
 	protected:
-		virtual void error_callback(beast::error_code ec) override {
+		void error_callback(beast::error_code ec) override {
 			if(delegate_) delegate_->completion_callback(savanna::result<http::response<Body>>(beast::system_error { ec }));
 		}
-		virtual void on_resolve_l(beast::error_code ec, tcp::resolver::results_type results) override {
-			std::cout << "on_resolve" << std::endl;
+		void on_resolve_l(beast::error_code ec, tcp::resolver::results_type results) override {
 			tcp_stream_->expires_after(timeout_interval_);
 			tcp_stream_->async_connect(results, beast::bind_front_handler(&http_logic<Body>::on_connect, this->shared_from_this()));
 		}
 
-		virtual void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override {
-			std::cout << "on_connect" << std::endl;
+		void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override {
 			tcp_stream_->expires_after(timeout_interval_);
 			http::async_write(*tcp_stream_, request_, beast::bind_front_handler(&http_logic<Body>::on_write, this->shared_from_this()));
 		}
-		virtual void on_handshake_l(beast::error_code ec) override { }
+		void on_handshake_l(beast::error_code ec) override { }
 
-		virtual void on_write_l(beast::error_code ec, std::size_t bytes_transferred) override {
-			std::cout << "on_write" << std::endl;
+		void on_write_l(beast::error_code ec, std::size_t bytes_transferred) override {
 			http::async_read(*tcp_stream_, buffer_, response_, beast::bind_front_handler(&http_logic<Body>::on_read, this->shared_from_this()));
 		}
-		virtual void on_read_l(beast::error_code ec, std::size_t bytes_transferred) override {
-			std::cout << "on_read" << std::endl;
-			bool unfollow = true;
+		void on_read_l(beast::error_code ec, std::size_t bytes_transferred) override {
 			if (ec && ec != beast::errc::not_connected) {
 				error_callback(ec);
 			}
-			if(unfollow){
-//				tcp_stream_->socket().shutdown(tcp::socket::shutdown_both, ec);
-				if (ec && ec != beast::errc::not_connected) {
-					//				completion_(savanna::result<http::response<Body>>(beast::system_error { ec }));
-				}
-				else {
-					if(delegate_) unfollow = delegate_->completion_callback(savanna::result<http::response<Body>>(std::move(response_)));
-				}
+			tcp_stream_->socket().shutdown(tcp::socket::shutdown_both, ec);
+			if (ec && ec != beast::errc::not_connected) {
+				error_callback(ec);
+			}else {
+				if(delegate_) delegate_->completion_callback(savanna::result<http::response<Body>>(std::move(response_)));
 			}
 		}
 
-		virtual void on_shutdown_l(beast::error_code ec) override {}
+		void on_shutdown_l(beast::error_code ec) override {}
 	public:
-		virtual ~http_logic(){
+		~http_logic() override{
 			tcp_stream_ = nullptr;
 			resolver_ = nullptr;
 		}
@@ -151,11 +150,13 @@ namespace savanna
 			tcp_stream_ = tcp_stream;
 			delegate_ = delegate;
 		}
-		virtual void run(std::string host, std::string port_str, http::request<http::string_body> request) override {
-			std::cout << "connect" << std::endl;
+		void run(std::string host, std::string port_str, http::request<http::string_body> request) override {
 			request_ = request;
 			resolver_->async_resolve(host, port_str, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
 		}
+		void cancel() override {
+			tcp_stream_->cancel();
+		};
 	};
 	template <class Body>
 	class https_logic: public interface{
@@ -169,11 +170,10 @@ namespace savanna
 		std::string host_;
 		std::map<std::string, SSL_SESSION*>* ssl_cache_;
 	protected:
-		virtual void error_callback(beast::error_code ec) override {
+		void error_callback(beast::error_code ec) override {
 			if(delegate_) delegate_->completion_callback(savanna::result<http::response<Body>>(beast::system_error { ec }));
 		}
-		virtual void on_resolve_l(beast::error_code ec, tcp::resolver::results_type results) override {
-			std::cout << "on_resolve" << std::endl;
+		void on_resolve_l(beast::error_code ec, tcp::resolver::results_type results) override {
 			if (!SSL_set_tlsext_host_name(ssl_stream_->native_handle(), host_.c_str())) {
 				beast::error_code ssl_ec { static_cast<int>(::ERR_get_error()), net::error::get_ssl_category() };
 				error_callback(ssl_ec);
@@ -185,8 +185,8 @@ namespace savanna
 			beast::get_lowest_layer(*ssl_stream_).async_connect(results, beast::bind_front_handler(&https_logic<Body>::on_connect, this->shared_from_this()));
 		}
 
-		virtual void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override {
-			std::cout << "on_connect" << std::endl;
+		void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override {
+			// add session to the cache after a successful connection
 			if(ssl_cache_) {
 				SSL_SESSION *session = SSL_get1_session(ssl_stream_->native_handle());
 				auto cached_session = ssl_cache_->find(host_);
@@ -196,16 +196,12 @@ namespace savanna
 			}
 
 			ssl_stream_->async_handshake(
-			    ssl::stream_base::client,
-			    beast::bind_front_handler(
-			        &https_logic<Body>::on_handshake,
-			        this->shared_from_this()));
 				ssl::stream_base::client,
 				beast::bind_front_handler(
 					&https_logic<Body>::on_handshake,
 					this->shared_from_this()));
 		}
-		virtual void on_handshake_l(beast::error_code ec) override {
+		void on_handshake_l(beast::error_code ec) override {
 			// after a connection can check if ssl-session was reused
 			if(ssl_cache_) {
 				SSL_SESSION *session = SSL_get1_session(ssl_stream_->native_handle());
@@ -223,12 +219,10 @@ namespace savanna
 			http::async_write(*ssl_stream_, request_, beast::bind_front_handler(&https_logic<Body>::on_write, this->shared_from_this()));
 		}
 
-		virtual void on_write_l(beast::error_code ec, std::size_t bytes_transferred) override {
-			std::cout << "on_write" << std::endl;
+		void on_write_l(beast::error_code ec, std::size_t bytes_transferred) override {
 			http::async_read(*ssl_stream_, buffer_, response_, beast::bind_front_handler(&https_logic<Body>::on_read, this->shared_from_this()));
 		}
-		virtual void on_read_l(beast::error_code ec, std::size_t bytes_transferred) override {
-			std::cout << "on_read" << std::endl;
+		void on_read_l(beast::error_code ec, std::size_t bytes_transferred) override {
 			bool unfollow = true;
 			if (ec && ec != beast::errc::not_connected) {
 				error_callback(ec);
@@ -241,8 +235,8 @@ namespace savanna
 			}
 		}
 
-		virtual void on_shutdown_l(beast::error_code ec) override {
-			std::cout << "on_shutdown" << std::endl;
+		void on_shutdown_l(beast::error_code ec) override {
+
 		}
 	public:
 		https_logic(std::shared_ptr<beast::ssl_stream<beast::tcp_stream>> ssl_stream, std::shared_ptr<tcp::resolver> resolver, delegate<Body>* delegate, std::map<std::string, SSL_SESSION*>* ssl_cache){
@@ -251,20 +245,20 @@ namespace savanna
 			delegate_ = delegate;
 			ssl_cache_ = ssl_cache;
 		}
-		virtual void run(std::string host, std::string port_str, http::request<http::string_body> request) override {
-			std::cout << "https_logic connect " << host << std::endl;
+		void run(std::string host, std::string port_str, http::request<http::string_body> request) override {
 			host_ = host;
 			request_ = request;
-
-//			auto const results = resolver_->resolve(host, port_str);
-//			std::cout << results->endpoint().address().to_string() << std::endl;
 			resolver_->async_resolve(host, port_str, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
 		}
+		void cancel() override {
+			beast::get_lowest_layer(*ssl_stream_).cancel();
+		};
 	};
 	template <class Body>
 	class reuse_async_url_session : public delegate<Body>
 	{
 	private:
+		std::mutex mtx_;
 		ssl::context* ssl_ctx_;
 		std::shared_ptr<interface> logic = nullptr;
 		std::shared_ptr<http_logic<Body>> http_logic_ = nullptr;
@@ -290,12 +284,12 @@ namespace savanna
 			return url.scheme();
 		}
 
-		void update_request(savanna::request2 original_request, std::string new_target, std::string new_host)
+		void update_request(const savanna::request2& original_request, const std::string& new_target, const std::string& new_host)
 		{
 			request_.target(new_target);
 			request_.set(http::field::host, new_host);
-			for (auto h = original_request.header_fields.begin(); h != original_request.header_fields.end(); ++h) {
-				request_.set(h->first, h->second);
+			for (auto & header_field : original_request.header_fields) {
+				request_.set(header_field.first, header_field.second);
 			}
 			if (original_request.endpoint->method() != http::verb::get) {
 				if (original_request.endpoint->params()) {
@@ -314,19 +308,17 @@ namespace savanna
 		void run(std::string host, std::string port_str)
 		{
 			select();
-			logic->run(host, port_str, request_);
+			logic->run(std::move(host), std::move(port_str), request_);
 		}
 		void select(){
 			if (current_scheme() == url_scheme::https) {
-				std::cout << "select https" << std::endl;
 				logic = https_logic_;
 			}else{
-				std::cout << "select http" << std::endl;
 				logic = http_logic_;
 			}
 		};
 
-		virtual bool completion_callback(savanna::result<http::response<http::dynamic_body>> result) override {
+		bool completion_callback(savanna::result<http::response<http::dynamic_body>> result) override {
 			if (!result.error) {
 				if ((result.response->result_int() >= 300) && result.response->result_int() < 400 && follow_location_) {
 					auto location = result.response->base()["Location"].to_string();
@@ -383,12 +375,7 @@ namespace savanna
 
 		void cancel()
 		{
-			if (current_scheme() == url_scheme::https) {
-				beast::get_lowest_layer(*ssl_stream_).cancel();
-			}
-			else {
-				tcp_stream_->cancel();
-			}
+			if(logic) logic->cancel();
 		}
 	};
 }
