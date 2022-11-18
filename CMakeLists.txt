@@ -21,5 +21,6 @@ if(Boost_FOUND)
     # Add sub-directories
     add_subdirectory(example/client)
     add_subdirectory(example/async_client)
+    add_subdirectory(example/reuse_async_client)
     add_subdirectory(example/websocket)
 endif()
