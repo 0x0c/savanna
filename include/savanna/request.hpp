@@ -36,32 +36,35 @@ namespace savanna
 			return &this;
 		}
 	};
-	class request2
+	namespace ssl_reuse
 	{
-	public:
-		typedef endpoint Endpoint;
-		bool follow_location = false;
-		std::shared_ptr<Endpoint> endpoint;
-		unsigned int version = 11;
-		std::string body;
-		std::map<std::string, std::string> header_fields;
-		std::chrono::nanoseconds timeout_interval = std::chrono::seconds(30);
-
-		request2(){}
-		request2(std::shared_ptr<Endpoint> e)
-		    : endpoint(e)
+		class request
 		{
+		public:
+			typedef endpoint Endpoint;
+			bool follow_location = false;
+			std::shared_ptr<Endpoint> endpoint;
+			unsigned int version = 11;
+			std::string body;
+			std::map<std::string, std::string> header_fields;
+			std::chrono::nanoseconds timeout_interval = std::chrono::seconds(30);
 
-		}
-		virtual ~request2(){
-			endpoint = nullptr;
-		}
+			request() { }
+			request(std::shared_ptr<Endpoint> e)
+			    : endpoint(e)
+			{
+			}
+			virtual ~request()
+			{
+				endpoint = nullptr;
+			}
 
-		request2 && set_http_version(unsigned int version)
-		{
-			this->version = version;
-			return std::move(*this);
-		}
-	};
+			request &&set_http_version(unsigned int version)
+			{
+				this->version = version;
+				return std::move(*this);
+			}
+		};
+	}
 }
 }

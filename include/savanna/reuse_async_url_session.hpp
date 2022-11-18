@@ -25,7 +25,8 @@ namespace m2d
 {
 namespace savanna
 {
-
+namespace ssl_reuse
+{
 	namespace beast = boost::beast;
 	namespace http = beast::http;
 	namespace net = boost::asio;
@@ -105,7 +106,7 @@ namespace savanna
 		delegate<Body>* delegate_;
 		std::shared_ptr<beast::tcp_stream> tcp_stream_;
 		std::shared_ptr<tcp::resolver> resolver_;
-		std::chrono::nanoseconds timeout_interval_ = std::chrono::seconds(30);
+		std::chrono::nanoseconds timeout_interval_;
 		beast::flat_buffer buffer_;
 		http::response<Body> response_;
 		http::request<http::string_body> request_;
@@ -145,10 +146,11 @@ namespace savanna
 			tcp_stream_ = nullptr;
 			resolver_ = nullptr;
 		}
-		http_logic(std::shared_ptr<beast::tcp_stream> tcp_stream, std::shared_ptr<tcp::resolver> resolver, delegate<Body>* delegate){
+		http_logic(std::shared_ptr<beast::tcp_stream> tcp_stream, std::shared_ptr<tcp::resolver> resolver, delegate<Body>* delegate, std::chrono::nanoseconds timeout_interval){
 			resolver_ = resolver;
 			tcp_stream_ = tcp_stream;
 			delegate_ = delegate;
+			timeout_interval_ = timeout_interval;
 		}
 		void run(std::string host, std::string port_str, http::request<http::string_body> request) override {
 			request_ = request;
@@ -163,12 +165,12 @@ namespace savanna
 		delegate<Body>* delegate_;
 		std::shared_ptr<beast::ssl_stream<beast::tcp_stream>> ssl_stream_;
 		std::shared_ptr<tcp::resolver> resolver_;
-		std::chrono::nanoseconds timeout_interval_ = std::chrono::seconds(30);
+		std::chrono::nanoseconds timeout_interval_;
 		beast::flat_buffer buffer_;
 		http::response<Body> response_;
 		http::request<http::string_body> request_;
 		std::string host_;
-		std::map<std::string, SSL_SESSION*>* ssl_cache_;
+		std::map<std::string, std::shared_ptr<SSL_SESSION>>* ssl_cache_;
 	protected:
 		void error_callback(beast::error_code ec) override {
 			if(delegate_) delegate_->completion_callback(savanna::result<http::response<Body>>(beast::system_error { ec }));
@@ -188,10 +190,9 @@ namespace savanna
 		void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override {
 			// add session to the cache after a successful connection
 			if(ssl_cache_) {
-				SSL_SESSION *session = SSL_get1_session(ssl_stream_->native_handle());
 				auto cached_session = ssl_cache_->find(host_);
 				if (cached_session != ssl_cache_->end()) {
-					SSL_set_session(ssl_stream_->native_handle(), cached_session->second);
+					SSL_set_session(ssl_stream_->native_handle(), cached_session->second.get());
 				}
 			}
 
@@ -204,7 +205,7 @@ namespace savanna
 		void on_handshake_l(beast::error_code ec) override {
 			// after a connection can check if ssl-session was reused
 			if(ssl_cache_) {
-				SSL_SESSION *session = SSL_get1_session(ssl_stream_->native_handle());
+				auto session = std::shared_ptr<SSL_SESSION>(SSL_get1_session(ssl_stream_->native_handle()), SSL_SESSION_free);
 				if (SSL_session_reused(ssl_stream_->native_handle())) {
 				//	std::cout << "session reused" << std::endl;
 				}
@@ -239,11 +240,12 @@ namespace savanna
 
 		}
 	public:
-		https_logic(std::shared_ptr<beast::ssl_stream<beast::tcp_stream>> ssl_stream, std::shared_ptr<tcp::resolver> resolver, delegate<Body>* delegate, std::map<std::string, SSL_SESSION*>* ssl_cache){
+		https_logic(std::shared_ptr<beast::ssl_stream<beast::tcp_stream>> ssl_stream, std::shared_ptr<tcp::resolver> resolver, delegate<Body>* delegate, std::map<std::string, std::shared_ptr<SSL_SESSION>>* ssl_cache, std::chrono::nanoseconds timeout_interval){
 			resolver_ = resolver;
 			ssl_stream_ = ssl_stream;
 			delegate_ = delegate;
 			ssl_cache_ = ssl_cache;
+			timeout_interval_ = timeout_interval;
 		}
 		void run(std::string host, std::string port_str, http::request<http::string_body> request) override {
 			host_ = host;
@@ -259,21 +261,20 @@ namespace savanna
 	{
 	private:
 		std::mutex mtx_;
-		ssl::context* ssl_ctx_;
+		ssl::context ssl_ctx_;
 		std::shared_ptr<interface> logic = nullptr;
 		std::shared_ptr<http_logic<Body>> http_logic_ = nullptr;
 		std::shared_ptr<https_logic<Body>> https_logic_ = nullptr;
-		bool already_run_ = false;
 		std::function<void(savanna::result<http::response<Body>>)> completion_ = nullptr;
 		http::request<http::string_body> request_;
-		savanna::request2 original_request_;
+		savanna::ssl_reuse::request original_request_;
 		std::shared_ptr<net::io_context> ctx_;
 		std::shared_ptr<tcp::resolver> resolver_;
 		std::shared_ptr<beast::tcp_stream> tcp_stream_;
 		std::shared_ptr<beast::ssl_stream<beast::tcp_stream>> ssl_stream_;
 
 		// need some object that will store the cache
-		std::map<std::string, SSL_SESSION*> ssl_cache_;
+		std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache_;
 
 		bool follow_location_ = false;
 
@@ -284,7 +285,7 @@ namespace savanna
 			return url.scheme();
 		}
 
-		void update_request(const savanna::request2& original_request, const std::string& new_target, const std::string& new_host)
+		void update_request(const savanna::ssl_reuse::request& original_request, const std::string& new_target, const std::string& new_host)
 		{
 			request_.target(new_target);
 			request_.set(http::field::host, new_host);
@@ -332,27 +333,23 @@ namespace savanna
 			return true;
 		}
 	public:
-		explicit reuse_async_url_session(ssl::context* ssl_ctx)
+		explicit reuse_async_url_session(ssl::context ssl_ctx) : ssl_ctx_(std::move(ssl_ctx))
 		{
-			ssl_ctx_ = ssl_ctx;
 			ssl_cache_ = {};
 		}
 		~reuse_async_url_session(){
-			for(std::pair<std::string, SSL_SESSION*> p: ssl_cache_){
-				SSL_SESSION_free(p.second);
-			}
 		}
 
 
-		bool send(savanna::request2 original_request, std::function<void(savanna::result<http::response<Body>>)> completion)
+		bool send(savanna::ssl_reuse::request original_request, std::function<void(savanna::result<http::response<Body>>)> completion)
 		{
 			std::lock_guard<std::mutex> lock(mtx_);
 			ctx_ = std::make_shared<net::io_context>();
 			resolver_ = std::make_shared<tcp::resolver>(*ctx_);
 			tcp_stream_ = std::make_shared<beast::tcp_stream>(*ctx_);
-			ssl_stream_ = std::make_shared<beast::ssl_stream<beast::tcp_stream>>(*ctx_, *ssl_ctx_);
-			http_logic_ = std::make_shared<http_logic<Body>>(tcp_stream_, resolver_, this);
-			https_logic_ = std::make_shared<https_logic<Body>>(ssl_stream_, resolver_, this, &ssl_cache_);
+			ssl_stream_ = std::make_shared<beast::ssl_stream<beast::tcp_stream>>(*ctx_, ssl_ctx_);
+			http_logic_ = std::make_shared<http_logic<Body>>(tcp_stream_, resolver_, this, original_request.timeout_interval);
+			https_logic_ = std::make_shared<https_logic<Body>>(ssl_stream_, resolver_, this, &ssl_cache_, original_request.timeout_interval);
 			completion_ = completion;
 			request_.version(original_request.version);
 			request_.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
@@ -366,10 +363,10 @@ namespace savanna
 			return true;
 		}
 
-		std::map<std::string, SSL_SESSION*> ssl_cache(){
+		std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache(){
 			return ssl_cache_;
 		}
-		void ssl_cache(std::map<std::string, SSL_SESSION*> ssl_cache){
+		void ssl_cache(std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache){
 			ssl_cache_ = ssl_cache;
 		}
 
@@ -378,5 +375,6 @@ namespace savanna
 			if(logic) logic->cancel();
 		}
 	};
+}
 }
 }

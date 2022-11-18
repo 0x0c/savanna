@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
 		{ "Harry", "800" }
 	};
 	auto endpoint = std::make_shared<get_yahoo_endpoint>(params);
-	savanna::request2 request(endpoint);
+	savanna::ssl_reuse::request request(endpoint);
 	//    auto endpoint = post_localhost_endpoint(params);
 	//    savanna::request<post_localhost_endpoint> request(std::move(endpoint));
 	request.body = "BODY";
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
 	ssl::context ssl_ctx(ssl::context::tlsv12_client);
 	std::once_flag once;
 	std::call_once(once, savanna::load_root_cert, m2d::root_cert(), ssl_ctx);
-	auto async_session = std::make_shared<savanna::reuse_async_url_session<http::dynamic_body>>(&ssl_ctx);
+	auto async_session = std::make_shared<savanna::ssl_reuse::reuse_async_url_session<http::dynamic_body>>(std::move(ssl_ctx));
 	std::cout << "Wait..." << std::endl;
 
 	std::vector<std::thread> th;
