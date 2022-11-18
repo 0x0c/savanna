@@ -2,6 +2,7 @@
 
 #include <boost/optional.hpp>
 #include <chrono>
+#include "endpoint.hpp"
 
 namespace m2d
 {
@@ -35,5 +36,35 @@ namespace savanna
 			return &this;
 		}
 	};
+	namespace ssl_reuse
+	{
+		class request
+		{
+		public:
+			typedef endpoint Endpoint;
+			bool follow_location = false;
+			std::shared_ptr<Endpoint> endpoint;
+			unsigned int version = 11;
+			std::string body;
+			std::map<std::string, std::string> header_fields;
+			std::chrono::nanoseconds timeout_interval = std::chrono::seconds(30);
+
+			request() { }
+			request(std::shared_ptr<Endpoint> e)
+			    : endpoint(e)
+			{
+			}
+			virtual ~request()
+			{
+				endpoint = nullptr;
+			}
+
+			request &&set_http_version(unsigned int version)
+			{
+				this->version = version;
+				return std::move(*this);
+			}
+		};
+	}
 }
 }
