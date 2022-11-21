@@ -58,16 +58,17 @@ int main(int argc, char *argv[])
 		{ savanna::to_string(http::field::content_type), "text/plain" }
 	};
 
-	ssl::context ssl_ctx(ssl::context::tlsv12_client);
-	std::once_flag once;
-	std::call_once(once, savanna::load_root_cert, m2d::root_cert(), ssl_ctx);
-	auto async_session = std::make_shared<savanna::ssl_reuse::reuse_async_url_session<http::dynamic_body>>(std::move(ssl_ctx));
+	auto async_session = std::make_shared<savanna::ssl_reuse::reuse_async_url_session>();
 	std::cout << "Wait..." << std::endl;
 
 	std::vector<std::thread> th;
 	for(int i=0; i<3; i++){
 		th.emplace_back([&] {
-			async_session->send(request, [&](savanna::result<http::response<http::dynamic_body>> result) {
+			ssl::context ssl_ctx(ssl::context::tlsv12_client);
+			std::once_flag once;
+			std::call_once(once, savanna::load_root_cert, m2d::root_cert(), ssl_ctx);
+			auto executor = async_session->prepare<http::dynamic_body>(std::move(ssl_ctx));
+			executor->send(request, [&](savanna::result<http::response<http::dynamic_body>> result) {
 				if (result.error) {
 					auto e = *(result.error);
 					std::cout << "Error: " << e.what() << ", code: " << e.code() << std::endl;
@@ -80,13 +81,14 @@ int main(int argc, char *argv[])
 			});
 			std::cout << "Done" << std::endl << std::endl;
 		});
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
 	}
 	for(auto &t : th){
 		t.join();
 	}
 	std::cout << "Finish" << std::endl;
-	for(auto [K,V] : async_session->ssl_cache()){
-		std::cout << "host: " << K << ", session_ptr: " << V << std::endl;
+	for(const auto &item : async_session->ssl_cache()){
+		std::cout << "host: " << item.first << ", session_ptr: " << item.second << std::endl;
 	}
 	return 0;
 }

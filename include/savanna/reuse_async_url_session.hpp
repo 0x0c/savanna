@@ -257,10 +257,11 @@ namespace ssl_reuse
 		};
 	};
 	template <class Body>
-	class reuse_async_url_session : public delegate<Body>
-	{
+	class reuse_async_request_executor : public delegate<Body>{
 	private:
-		std::mutex mtx_;
+		// need some object that will store the cache
+		std::map<std::string, std::shared_ptr<SSL_SESSION>>* ssl_cache_;
+
 		ssl::context ssl_ctx_;
 		std::shared_ptr<interface> logic = nullptr;
 		std::shared_ptr<http_logic<Body>> http_logic_ = nullptr;
@@ -272,9 +273,7 @@ namespace ssl_reuse
 		std::shared_ptr<tcp::resolver> resolver_;
 		std::shared_ptr<beast::tcp_stream> tcp_stream_;
 		std::shared_ptr<beast::ssl_stream<beast::tcp_stream>> ssl_stream_;
-
-		// need some object that will store the cache
-		std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache_;
+		bool isReady_ = true;
 
 		bool follow_location_ = false;
 
@@ -333,34 +332,57 @@ namespace ssl_reuse
 			return true;
 		}
 	public:
-		explicit reuse_async_url_session(ssl::context ssl_ctx) : ssl_ctx_(std::move(ssl_ctx))
+		reuse_async_request_executor (ssl::context ssl_ctx, std::map<std::string, std::shared_ptr<SSL_SESSION>>* ssl_cache)  : ssl_ctx_(std::move(ssl_ctx))
+		{
+			ssl_cache_ = ssl_cache;
+		}
+		bool send(savanna::ssl_reuse::request original_request, std::function<void(savanna::result<http::response<Body>>)> completion)
+		{
+			if(isReady_) {
+				isReady_ = false;
+				ctx_ = std::make_shared<net::io_context>();
+				resolver_ = std::make_shared<tcp::resolver>(*ctx_);
+				tcp_stream_ = std::make_shared<beast::tcp_stream>(*ctx_);
+				ssl_stream_ = std::make_shared<beast::ssl_stream<beast::tcp_stream>>(*ctx_, ssl_ctx_);
+				http_logic_ = std::make_shared<http_logic<Body>>(tcp_stream_, resolver_, this, original_request.timeout_interval);
+				https_logic_ = std::make_shared<https_logic<Body>>(ssl_stream_, resolver_, this, ssl_cache_, original_request.timeout_interval);
+				completion_ = completion;
+				request_.version(original_request.version);
+				request_.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
+				request_.method(original_request.endpoint->method());
+				original_request_ = original_request;
+				update_request(original_request, original_request.endpoint->build_url_str(), original_request.endpoint->host());
+
+				auto url = original_request.endpoint->url();
+				run(url.host(), url.port_str());
+				ctx_->run();
+				return true;
+			}
+			return false;
+		}
+		void cancel()
+		{
+			if(logic) logic->cancel();
+		}
+	};
+
+	class reuse_async_url_session
+	{
+	private:
+		// need some object that will store the cache
+		std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache_;
+	public:
+		explicit reuse_async_url_session()
 		{
 			ssl_cache_ = {};
 		}
 		~reuse_async_url_session(){
 		}
 
-
-		bool send(savanna::ssl_reuse::request original_request, std::function<void(savanna::result<http::response<Body>>)> completion)
-		{
-			std::lock_guard<std::mutex> lock(mtx_);
-			ctx_ = std::make_shared<net::io_context>();
-			resolver_ = std::make_shared<tcp::resolver>(*ctx_);
-			tcp_stream_ = std::make_shared<beast::tcp_stream>(*ctx_);
-			ssl_stream_ = std::make_shared<beast::ssl_stream<beast::tcp_stream>>(*ctx_, ssl_ctx_);
-			http_logic_ = std::make_shared<http_logic<Body>>(tcp_stream_, resolver_, this, original_request.timeout_interval);
-			https_logic_ = std::make_shared<https_logic<Body>>(ssl_stream_, resolver_, this, &ssl_cache_, original_request.timeout_interval);
-			completion_ = completion;
-			request_.version(original_request.version);
-			request_.set(http::field::user_agent, BOOST_BEAST_VERSION_STRING);
-			request_.method(original_request.endpoint->method());
-			original_request_ = original_request;
-			update_request(original_request, original_request.endpoint->build_url_str(), original_request.endpoint->host());
-
-			auto url = original_request.endpoint->url();
-			run(url.host(), url.port_str());
-			ctx_->run();
-			return true;
+		template <class Body>
+		std::shared_ptr<reuse_async_request_executor<Body>> prepare(ssl::context ssl_ctx){
+			auto executor = std::make_shared<reuse_async_request_executor<Body>>(std::move(ssl_ctx), &ssl_cache_);
+			return executor;
 		}
 
 		std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache(){
@@ -370,10 +392,6 @@ namespace ssl_reuse
 			ssl_cache_ = ssl_cache;
 		}
 
-		void cancel()
-		{
-			if(logic) logic->cancel();
-		}
 	};
 }
 }
