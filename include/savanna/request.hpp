@@ -41,7 +41,7 @@ namespace savanna
 		class request
 		{
 		public:
-			typedef endpoint Endpoint;
+			typedef savanna::endpoint Endpoint;
 			bool follow_location = false;
 			std::shared_ptr<Endpoint> endpoint;
 			unsigned int version = 11;
