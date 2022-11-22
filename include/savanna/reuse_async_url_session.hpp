@@ -171,6 +171,7 @@ namespace ssl_reuse
 		http::request<http::string_body> request_;
 		std::string host_;
 		std::map<std::string, std::shared_ptr<SSL_SESSION>>* ssl_cache_;
+		std::string ipaddress_;
 	protected:
 		void error_callback(beast::error_code ec) override {
 			if(delegate_) delegate_->completion_callback(savanna::result<http::response<Body>>(beast::system_error { ec }));
@@ -187,10 +188,11 @@ namespace ssl_reuse
 			beast::get_lowest_layer(*ssl_stream_).async_connect(results, beast::bind_front_handler(&https_logic<Body>::on_connect, this->shared_from_this()));
 		}
 
-		void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override {
+		void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type type) override {
 			// add session to the cache after a successful connection
+			ipaddress_ = type.address().to_string();
 			if(ssl_cache_) {
-				auto cached_session = ssl_cache_->find(host_);
+				auto cached_session = ssl_cache_->find(ipaddress_);
 				if (cached_session != ssl_cache_->end()) {
 					SSL_set_session(ssl_stream_->native_handle(), cached_session->second.get());
 				}
@@ -211,7 +213,7 @@ namespace ssl_reuse
 				}
 				else {
 				//	std::cout << "session new negotiated" << std::endl;
-					(*ssl_cache_)[host_] = session;
+					(*ssl_cache_)[ipaddress_] = session;
 				}
 			}
 			// Set a timeout on the operation
