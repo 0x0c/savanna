@@ -10,3 +10,4 @@
 #include "savanna/url_session.hpp"
 #include "savanna/util.hpp"
 #include "savanna/websocket.hpp"
+#include "savanna/async_websocket.hpp"
