@@ -111,7 +111,7 @@ namespace savanna
 			void on_close(beast::error_code ec){
 				on_close_l(ec);
 			}
-			virtual void run(std::string host, std::string path) = 0;
+			virtual void run(std::string host, std::string port, std::string path) = 0;
 			virtual void close() = 0;
 			virtual void write(std::string data) = 0;
 			virtual void read() = 0;
@@ -122,7 +122,7 @@ namespace savanna
 			std::shared_ptr<tcp::resolver> resolver_;
 			delegate* delegate_;
 			std::string host_;
-			std::string port_str_;
+			std::string port_;
 			std::string path_;
 			beast::flat_buffer buffer_;
 		protected:
@@ -136,10 +136,11 @@ namespace savanna
 
 			void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override {
 				beast::get_lowest_layer(*raw_stream_).expires_never();
+				raw_stream_->set_option(beast::websocket::stream_base::timeout::suggested(beast::role_type::client));
+
 				raw_stream_->set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
 					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
 				}));
-
 				raw_stream_->async_handshake(host_, path_, beast::bind_front_handler(&interface::on_handshake,this->shared_from_this()));
 			}
 
@@ -176,10 +177,11 @@ namespace savanna
 				resolver_ = resolver;
 				delegate_ = delegate;
 			}
-			void run(std::string host, std::string path) override {
+			void run(std::string host, std::string port, std::string path) override {
 				host_ = host;
+				port_ = port;
 				path_ = path;
-				resolver_->async_resolve(host, path, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
+				resolver_->async_resolve(host_, port_, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
 			}
 			void read() override {
 				raw_stream_->async_read(
@@ -210,7 +212,7 @@ namespace savanna
 			std::shared_ptr<tcp::resolver> resolver_;
 			delegate* delegate_;
 			std::string host_;
-			std::string port_str_;
+			std::string port_;
 			std::string path_;
 			beast::flat_buffer buffer_;
 
@@ -291,10 +293,11 @@ namespace savanna
 				delegate_ = delegate;
 				ssl_cache_ = ssl_cache;
 			}
-			void run(std::string host, std::string path) override {
+			void run(std::string host, std::string port, std::string path) override {
 				host_ = host;
+				port_ = port;
 				path_ = path;
-				resolver_->async_resolve(host, path, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
+				resolver_->async_resolve(host_, port_, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
 			}
 			void read() override {
 				ssl_stream_->async_read(
@@ -417,7 +420,7 @@ namespace savanna
 			void run(std::string path = "/")
 			{
 				make_connection(stream_, path, ctx_);
-				interface_->run(url_.host(), path);
+				interface_->run(url_.host(), url_.port_str(), path);
 				ctx_->run();
 			}
 

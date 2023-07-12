@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
 	// auto stream = savanna::websocket::raw_stream(ctx);
 	// savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(resolver), std::move(stream), url);
 
-	savanna::url url("ws://websocket-echo.com");
-	auto stream = std::make_shared<savanna::async_websocket::tls_stream>(*ctx, ssl_ctx);
+	savanna::url url("ws://localhost:80");
+	auto stream = std::make_shared<savanna::async_websocket::raw_stream>(*ctx);
 	savanna::async_websocket::async_session session;
 
 	auto executor = session.prepare(ctx, stream, url);
@@ -36,14 +36,14 @@ int main(int argc, char *argv[])
 	std::thread t([&]() {
 		try {
 			executor->run();
-		} catch (boost::wrapexcept<boost::system::system_error> e) {
+		} catch (boost::system::system_error  e) {
 			std::cout << "Error: " << e.what() << std::endl;
 		}
 	});
 	t.detach();
 
 	int retry_count = 3;
-	while (executor->current_state() != savanna::websocket::state::connected && retry_count > 0) {
+	while (executor->current_state() != savanna::async_websocket::state::connected && retry_count > 0) {
 		std::cout << "connecting..." << std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		retry_count--;
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	while (true) {
+	while (executor->current_state() == savanna::async_websocket::state::connected) {
 		std::cout << "send: hello" << std::endl;
 		executor->send("hello");
 		std::this_thread::sleep_for(std::chrono::seconds(1));

@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
 	// auto stream = savanna::websocket::raw_stream(ctx);
 	// savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(resolver), std::move(stream), url);
 
-	savanna::url url("ws://echo.websocket.org");
+	savanna::url url("ws://localhost:80");
 	auto stream = savanna::websocket::raw_stream(ctx);
 	savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(resolver), std::move(stream), url);
 
