@@ -184,6 +184,7 @@ namespace savanna
 				resolver_->async_resolve(host_, port_, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
 			}
 			void read() override {
+				buffer_.consume(buffer_.size());
 				raw_stream_->async_read(
 				    buffer_,
 				    beast::bind_front_handler(
@@ -300,6 +301,7 @@ namespace savanna
 				resolver_->async_resolve(host_, port_, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
 			}
 			void read() override {
+				buffer_.consume(buffer_.size());
 				ssl_stream_->async_read(
 				    buffer_,
 				    beast::bind_front_handler(
