@@ -17,32 +17,33 @@ int main(int argc, char *argv[])
 	std::once_flag once;
 	std::call_once(once, savanna::load_root_cert, m2d::root_cert(), ssl_ctx);
 
-	net::io_context ctx;
-	tcp::resolver resolver(ctx);
+	auto ctx = std::make_shared<net::io_context>();
 
 	// savanna::url url("ws://echo.websocket.org");
 	// auto stream = savanna::websocket::raw_stream(ctx);
 	// savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(resolver), std::move(stream), url);
 
 	savanna::url url("ws://localhost:80");
-	auto stream = savanna::websocket::raw_stream(ctx);
-	savanna::websocket::session<savanna::websocket::raw_stream> session(std::move(resolver), std::move(stream), url);
+	auto stream = std::make_shared<savanna::async_websocket::raw_stream>(*ctx);
+	savanna::async_websocket::async_session session;
 
-	session.on_message([](beast::flat_buffer buffer) {
+	auto executor = session.prepare(ctx, stream, url);
+
+	executor->on_message([](beast::flat_buffer buffer) {
 		std::cout << "received: " << beast::make_printable(buffer.data()) << std::endl;
 	});
 
 	std::thread t([&]() {
 		try {
-			session.run();
-		} catch (boost::wrapexcept<boost::system::system_error> e) {
+			executor->run();
+		} catch (boost::system::system_error  e) {
 			std::cout << "Error: " << e.what() << std::endl;
 		}
 	});
 	t.detach();
 
 	int retry_count = 3;
-	while (session.current_state() != savanna::websocket::state::connected && retry_count > 0) {
+	while (executor->current_state() != savanna::async_websocket::state::connected && retry_count > 0) {
 		std::cout << "connecting..." << std::endl;
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 		retry_count--;
@@ -51,12 +52,9 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	while (true) {
+	while (executor->current_state() == savanna::async_websocket::state::connected) {
 		std::cout << "send: hello" << std::endl;
-		auto ec = session.send("hello");
-		if (ec) {
-			std::cout << "error code: " << ec.value() << std::endl;
-		}
+		executor->send("hello");
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
 
