@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.0)
 add_definitions("-Wall")
 set(CMAKE_CXX_STANDARD 11)
 
-project(savanna VERSION 0.0.10 DESCRIPTION "boost-beast wrapper")
+project(savanna VERSION 0.0.13 DESCRIPTION "boost-beast wrapper")
 
 find_package(Boost 1.70.0 REQUIRED COMPONENTS system)
 if(Boost_FOUND)
@@ -21,5 +21,6 @@ if(Boost_FOUND)
     # Add sub-directories
     add_subdirectory(example/client)
     add_subdirectory(example/async_client)
+    add_subdirectory(example/reuse_async_client)
     add_subdirectory(example/websocket)
 endif()
