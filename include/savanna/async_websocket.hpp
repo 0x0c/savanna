@@ -41,7 +41,8 @@ namespace savanna
 			connected
 		};
 
-		class delegate{
+		class delegate
+		{
 		public:
 			virtual void on_ready() = 0;
 			virtual void on_read(beast::error_code ec, beast::flat_buffer buffer, std::size_t bytes_transferred) = 0;
@@ -49,7 +50,8 @@ namespace savanna
 			virtual void on_error(beast::error_code ec) = 0;
 			virtual void control_callback(beast::websocket::frame_type kind, boost::string_view payload) = 0;
 		};
-		class interface: public std::enable_shared_from_this<interface>{
+		class interface : public std::enable_shared_from_this<interface>
+		{
 		protected:
 			virtual void on_resolve_l(beast::error_code ec, tcp::resolver::results_type) = 0;
 			virtual void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) = 0;
@@ -59,44 +61,52 @@ namespace savanna
 			virtual void on_read_l(beast::error_code ec, std::size_t bytes_transferred) = 0;
 			virtual void on_shutdown_l(beast::error_code ec) = 0;
 			virtual void on_close_l(beast::error_code ec) = 0;
+
 		public:
-			virtual ~interface()= default;
+			virtual ~interface() = default;
 			virtual void error_callback(beast::error_code ec) = 0;
-			void on_resolve(beast::error_code ec, tcp::resolver::results_type results){
+			void on_resolve(beast::error_code ec, tcp::resolver::results_type results)
+			{
 				if (ec) {
 					error_callback(ec);
 					return;
 				}
 				on_resolve_l(ec, std::move(results));
 			}
-			void on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type type){
+			void on_connect(beast::error_code ec, tcp::resolver::results_type::endpoint_type type)
+			{
 				if (ec) {
 					error_callback(ec);
 					return;
 				}
 				on_connect_l(ec, std::move(type));
 			}
-			void on_ssl_handshake(beast::error_code ec){
+			void on_ssl_handshake(beast::error_code ec)
+			{
 				if (ec) {
 					error_callback(ec);
 					return;
 				}
 				on_ssl_handshake_l(ec);
 			}
-			void on_handshake(beast::error_code ec){
+			void on_handshake(beast::error_code ec)
+			{
 				if (ec) {
 					error_callback(ec);
 					return;
 				}
 				on_handshake_l(ec);
 			}
-			void on_write(beast::error_code ec, std::size_t bytes_transferred){
+			void on_write(beast::error_code ec, std::size_t bytes_transferred)
+			{
 				on_write_l(ec, bytes_transferred);
 			}
-			void on_read(beast::error_code ec, std::size_t bytes_transferred){
+			void on_read(beast::error_code ec, std::size_t bytes_transferred)
+			{
 				on_read_l(ec, bytes_transferred);
 			}
-			void on_shutdown(beast::error_code ec){
+			void on_shutdown(beast::error_code ec)
+			{
 				if (ec == net::error::eof || ec == net::ssl::error::stream_truncated) {
 					// Rationale:
 					// http://stackoverflow.com/questions/25587403/boost-asio-ssl-async-shutdown-always-finishes-with-an-error
@@ -108,7 +118,8 @@ namespace savanna
 				}
 				on_shutdown_l(ec);
 			}
-			void on_close(beast::error_code ec){
+			void on_close(beast::error_code ec)
+			{
 				on_close_l(ec);
 			}
 			virtual void run(std::string host, std::string port, std::string path) = 0;
@@ -117,39 +128,46 @@ namespace savanna
 			virtual void read() = 0;
 		};
 
-		class raw_stream_logic: public interface{
+		class raw_stream_logic : public interface
+		{
 			std::shared_ptr<beast::websocket::stream<beast::tcp_stream>> raw_stream_;
 			std::shared_ptr<tcp::resolver> resolver_;
-			delegate* delegate_;
+			delegate *delegate_;
 			std::string host_;
 			std::string port_;
 			std::string path_;
 			beast::flat_buffer buffer_;
+
 		protected:
-			void error_callback(beast::error_code ec) override {
-				if(delegate_) delegate_->on_error(ec);
+			void error_callback(beast::error_code ec) override
+			{
+				if (delegate_)
+					delegate_->on_error(ec);
 			}
-			void on_resolve_l( beast::error_code ec, tcp::resolver::results_type results) override {
+			void on_resolve_l(beast::error_code ec, tcp::resolver::results_type results) override
+			{
 				beast::get_lowest_layer(*raw_stream_).expires_after(std::chrono::seconds(120));
 				beast::get_lowest_layer(*raw_stream_).async_connect(results, beast::bind_front_handler(&interface::on_connect, this->shared_from_this()));
 			}
 
-			void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override {
+			void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type) override
+			{
 				beast::get_lowest_layer(*raw_stream_).expires_never();
 				raw_stream_->set_option(beast::websocket::stream_base::timeout::suggested(beast::role_type::client));
 
 				raw_stream_->set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
 					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
 				}));
-				raw_stream_->async_handshake(host_, path_, beast::bind_front_handler(&interface::on_handshake,this->shared_from_this()));
+				raw_stream_->async_handshake(host_, path_, beast::bind_front_handler(&interface::on_handshake, this->shared_from_this()));
 			}
 
-			void on_ssl_handshake_l(beast::error_code ec) override {
-
+			void on_ssl_handshake_l(beast::error_code ec) override
+			{
 			}
-			void on_handshake_l(beast::error_code ec) override {
-				//success
-				if(delegate_) {
+			void on_handshake_l(beast::error_code ec) override
+			{
+				// success
+				if (delegate_) {
 					auto control_callback = [this](beast::websocket::frame_type kind, boost::string_view payload) {
 						delegate_->control_callback(kind, payload);
 					};
@@ -158,32 +176,41 @@ namespace savanna
 				}
 			}
 
-			void on_write_l(beast::error_code ec, std::size_t bytes_transferred) override {
-				if(delegate_) delegate_->on_write(ec, bytes_transferred);
+			void on_write_l(beast::error_code ec, std::size_t bytes_transferred) override
+			{
+				if (delegate_)
+					delegate_->on_write(ec, bytes_transferred);
 			}
-			void on_read_l(beast::error_code ec, std::size_t bytes_transferred) override {
-				if(delegate_) delegate_->on_read(ec, buffer_, bytes_transferred);
+			void on_read_l(beast::error_code ec, std::size_t bytes_transferred) override
+			{
+				if (delegate_)
+					delegate_->on_read(ec, buffer_, bytes_transferred);
 			}
 
-			void on_shutdown_l(beast::error_code ec) override {}
-			void on_close_l(beast::error_code ec) override {}
+			void on_shutdown_l(beast::error_code ec) override { }
+			void on_close_l(beast::error_code ec) override { }
+
 		public:
-			~raw_stream_logic() override{
+			~raw_stream_logic() override
+			{
 				raw_stream_ = nullptr;
 				resolver_ = nullptr;
 			}
-			raw_stream_logic(raw_stream_ptr tcp_stream, delegate* delegate, std::shared_ptr<tcp::resolver> resolver){
+			raw_stream_logic(raw_stream_ptr tcp_stream, delegate *delegate, std::shared_ptr<tcp::resolver> resolver)
+			{
 				raw_stream_ = tcp_stream;
 				resolver_ = resolver;
 				delegate_ = delegate;
 			}
-			void run(std::string host, std::string port, std::string path) override {
+			void run(std::string host, std::string port, std::string path) override
+			{
 				host_ = host;
 				port_ = port;
 				path_ = path;
 				resolver_->async_resolve(host_, port_, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
 			}
-			void read() override {
+			void read() override
+			{
 				buffer_.consume(buffer_.size());
 				raw_stream_->async_read(
 				    buffer_,
@@ -191,14 +218,16 @@ namespace savanna
 				        &interface::on_read,
 				        shared_from_this()));
 			}
-			void write(std::string data) override {
+			void write(std::string data) override
+			{
 				raw_stream_->async_write(
 				    net::buffer(data),
 				    beast::bind_front_handler(
 				        &interface::on_write,
 				        shared_from_this()));
 			}
-			void close() override {
+			void close() override
+			{
 				raw_stream_->async_close(
 				    beast::websocket::close_code::normal,
 				    beast::bind_front_handler(
@@ -207,31 +236,36 @@ namespace savanna
 			}
 		};
 
-
-		class ssl_stream_logic: public interface{
+		class ssl_stream_logic : public interface
+		{
 			std::shared_ptr<beast::websocket::stream<beast::ssl_stream<beast::tcp_stream>>> ssl_stream_;
 			std::shared_ptr<tcp::resolver> resolver_;
-			delegate* delegate_;
+			delegate *delegate_;
 			std::string host_;
 			std::string port_;
 			std::string path_;
 			beast::flat_buffer buffer_;
 
-			std::map<std::string, std::shared_ptr<SSL_SESSION>>* ssl_cache_;
+			std::map<std::string, std::shared_ptr<SSL_SESSION>> *ssl_cache_;
 			std::string ipaddress_;
+
 		protected:
-			void error_callback(beast::error_code ec) override {
-				if(delegate_) delegate_->on_error(ec);
+			void error_callback(beast::error_code ec) override
+			{
+				if (delegate_)
+					delegate_->on_error(ec);
 			}
-			void on_resolve_l( beast::error_code ec, tcp::resolver::results_type results) override {
+			void on_resolve_l(beast::error_code ec, tcp::resolver::results_type results) override
+			{
 				beast::get_lowest_layer(*ssl_stream_).expires_after(std::chrono::seconds(120));
 				beast::get_lowest_layer(*ssl_stream_).async_connect(results, beast::bind_front_handler(&interface::on_connect, this->shared_from_this()));
 			}
 
-			void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type type) override {
+			void on_connect_l(beast::error_code ec, tcp::resolver::results_type::endpoint_type type) override
+			{
 				// add session to the cache after a successful connection
 				ipaddress_ = type.address().to_string();
-				if(ssl_cache_) {
+				if (ssl_cache_) {
 					auto cached_session = ssl_cache_->find(ipaddress_);
 					if (cached_session != ssl_cache_->end()) {
 						SSL_set_session(ssl_stream_->next_layer().native_handle(), cached_session->second.get());
@@ -244,14 +278,15 @@ namespace savanna
 				        this->shared_from_this()));
 			}
 
-			void on_ssl_handshake_l(beast::error_code ec) override {
+			void on_ssl_handshake_l(beast::error_code ec) override
+			{
 				beast::get_lowest_layer(*ssl_stream_).expires_never();
 				ssl_stream_->set_option(beast::websocket::stream_base::decorator([](beast::websocket::request_type &req) {
 					req.set(http::field::user_agent, std::string(BOOST_BEAST_VERSION_STRING) + " savanna");
 				}));
 
 				// after a connection can check if ssl-session was reused
-				if(ssl_cache_) {
+				if (ssl_cache_) {
 					auto session = std::shared_ptr<SSL_SESSION>(SSL_get1_session(ssl_stream_->next_layer().native_handle()), SSL_SESSION_free);
 					if (SSL_session_reused(ssl_stream_->next_layer().native_handle())) {
 						//	std::cout << "session reused" << std::endl;
@@ -261,11 +296,12 @@ namespace savanna
 						(*ssl_cache_)[ipaddress_] = session;
 					}
 				}
-				ssl_stream_->async_handshake(host_, path_, beast::bind_front_handler(&interface::on_handshake,this->shared_from_this()));
+				ssl_stream_->async_handshake(host_, path_, beast::bind_front_handler(&interface::on_handshake, this->shared_from_this()));
 			}
-			void on_handshake_l(beast::error_code ec) override {
-				//success
-				if(delegate_) {
+			void on_handshake_l(beast::error_code ec) override
+			{
+				// success
+				if (delegate_) {
 					auto control_callback = [this](beast::websocket::frame_type kind, boost::string_view payload) {
 						delegate_->control_callback(kind, payload);
 					};
@@ -274,33 +310,42 @@ namespace savanna
 				}
 			}
 
-			void on_write_l(beast::error_code ec, std::size_t bytes_transferred) override {
-				if(delegate_) delegate_->on_write(ec, bytes_transferred);
+			void on_write_l(beast::error_code ec, std::size_t bytes_transferred) override
+			{
+				if (delegate_)
+					delegate_->on_write(ec, bytes_transferred);
 			}
-			void on_read_l(beast::error_code ec, std::size_t bytes_transferred) override {
-				if(delegate_) delegate_->on_read(ec, buffer_, bytes_transferred);
+			void on_read_l(beast::error_code ec, std::size_t bytes_transferred) override
+			{
+				if (delegate_)
+					delegate_->on_read(ec, buffer_, bytes_transferred);
 			}
 
-			void on_shutdown_l(beast::error_code ec) override {}
-			void on_close_l(beast::error_code ec) override {}
+			void on_shutdown_l(beast::error_code ec) override { }
+			void on_close_l(beast::error_code ec) override { }
+
 		public:
-			~ssl_stream_logic() override{
+			~ssl_stream_logic() override
+			{
 				ssl_stream_ = nullptr;
 				resolver_ = nullptr;
 			}
-			ssl_stream_logic(tls_stream_ptr ssl_stream, delegate* delegate, std::shared_ptr<tcp::resolver> resolver, std::map<std::string, std::shared_ptr<SSL_SESSION>>* ssl_cache){
+			ssl_stream_logic(tls_stream_ptr ssl_stream, delegate *delegate, std::shared_ptr<tcp::resolver> resolver, std::map<std::string, std::shared_ptr<SSL_SESSION>> *ssl_cache)
+			{
 				ssl_stream_ = ssl_stream;
 				resolver_ = resolver;
 				delegate_ = delegate;
 				ssl_cache_ = ssl_cache;
 			}
-			void run(std::string host, std::string port, std::string path) override {
+			void run(std::string host, std::string port, std::string path) override
+			{
 				host_ = host;
 				port_ = port;
 				path_ = path;
 				resolver_->async_resolve(host_, port_, beast::bind_front_handler(&interface::on_resolve, this->shared_from_this()));
 			}
-			void read() override {
+			void read() override
+			{
 				buffer_.consume(buffer_.size());
 				ssl_stream_->async_read(
 				    buffer_,
@@ -308,14 +353,16 @@ namespace savanna
 				        &interface::on_read,
 				        shared_from_this()));
 			}
-			void write(std::string data) override {
+			void write(std::string data) override
+			{
 				ssl_stream_->async_write(
 				    net::buffer(data),
 				    beast::bind_front_handler(
 				        &interface::on_write,
 				        shared_from_this()));
 			}
-			void close() override {
+			void close() override
+			{
 				ssl_stream_->async_close(
 				    beast::websocket::close_code::normal,
 				    beast::bind_front_handler(
@@ -325,7 +372,7 @@ namespace savanna
 		};
 
 		template <typename T>
-		class reuse_websocket_executor: public delegate
+		class reuse_websocket_executor : public delegate
 		{
 		private:
 			std::shared_ptr<net::io_context> ctx_ = nullptr;
@@ -377,16 +424,19 @@ namespace savanna
 
 				interface_->read();
 			}
-			void on_ready() override {
+			void on_ready() override
+			{
 				set_current_state(connected);
 				interface_->read();
 			}
-			void on_error(beast::error_code ec) override {
+			void on_error(beast::error_code ec) override
+			{
 				set_current_state(unknown);
 				throw beast::system_error { ec };
 			}
 
-			void control_callback(beast::websocket::frame_type kind, boost::string_view payload) override {
+			void control_callback(beast::websocket::frame_type kind, boost::string_view payload) override
+			{
 				if (kind == beast::websocket::frame_type::close) {
 					this->set_current_state(closed);
 				}
@@ -401,11 +451,12 @@ namespace savanna
 
 		public:
 			std::function<void(state)> state_changed = [](state s) {};
-			reuse_websocket_executor(std::shared_ptr<net::io_context> ctx, T stream, savanna::url url, std::map<std::string, std::shared_ptr<SSL_SESSION>>* ssl_cache)
+			reuse_websocket_executor(std::shared_ptr<net::io_context> ctx, T stream, savanna::url url, std::map<std::string, std::shared_ptr<SSL_SESSION>> *ssl_cache)
 			    : url_(url)
 			    , ctx_(ctx)
 			    , scheme_(url_.scheme())
-			    , stream_(std::move(stream)){
+			    , stream_(std::move(stream))
+			{
 				ssl_cache_ = ssl_cache;
 			}
 
@@ -442,20 +493,24 @@ namespace savanna
 			}
 		};
 
-		class async_session{
+		class async_session
+		{
 			std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache_ = {};
-		public:
 
+		public:
 			template <class T>
-			std::shared_ptr<reuse_websocket_executor<T>> prepare(std::shared_ptr<net::io_context> ctx, T stream, savanna::url url){
+			std::shared_ptr<reuse_websocket_executor<T>> prepare(std::shared_ptr<net::io_context> ctx, T stream, savanna::url url)
+			{
 				auto executor = std::make_shared<reuse_websocket_executor<T>>(ctx, stream, url, &ssl_cache_);
 				return executor;
 			}
 
-			std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache(){
+			std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache()
+			{
 				return ssl_cache_;
 			}
-			void ssl_cache(std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache){
+			void ssl_cache(std::map<std::string, std::shared_ptr<SSL_SESSION>> ssl_cache)
+			{
 				ssl_cache_ = ssl_cache;
 			}
 		};
