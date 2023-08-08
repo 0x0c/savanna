@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
 	std::thread t([&]() {
 		try {
 			executor->run();
-		} catch (boost::system::system_error  e) {
+		} catch (boost::system::system_error e) {
 			std::cout << "Error: " << e.what() << std::endl;
 		}
 	});
@@ -57,6 +57,5 @@ int main(int argc, char *argv[])
 		executor->send("hello");
 		std::this_thread::sleep_for(std::chrono::seconds(1));
 	}
-
 	return 0;
 }
