@@ -3,6 +3,7 @@
 #include <boost/beast/http.hpp>
 #include <boost/optional.hpp>
 #include <exception>
+#include <map>
 
 #include "savanna/url.hpp"
 
