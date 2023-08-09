@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15.0)
 add_definitions("-Wall")
 set(CMAKE_CXX_STANDARD 11)
 
-project(savanna VERSION 0.0.13 DESCRIPTION "boost-beast wrapper")
+project(savanna VERSION 0.0.14 DESCRIPTION "boost-beast wrapper")
 
 find_package(Boost 1.70.0 REQUIRED COMPONENTS system)
 find_package(OpenSSL REQUIRED)
