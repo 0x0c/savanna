@@ -110,7 +110,7 @@ namespace savanna
 			{
 			}
 
-			~session()
+			virtual ~session()
 			{
 				close();
 			}
