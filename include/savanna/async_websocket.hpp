@@ -191,7 +191,7 @@ namespace savanna
 			void on_close_l(beast::error_code ec) override { }
 
 		public:
-			~raw_stream_logic() override
+			virtual ~raw_stream_logic() override
 			{
 				raw_stream_ = nullptr;
 				resolver_ = nullptr;
@@ -211,6 +211,7 @@ namespace savanna
 			}
 			void read() override
 			{
+				if(!raw_stream_->is_open()) return;
 				buffer_.consume(buffer_.size());
 				raw_stream_->async_read(
 				    buffer_,
@@ -220,6 +221,7 @@ namespace savanna
 			}
 			void write(std::string data) override
 			{
+				if(!raw_stream_->is_open()) return;
 				raw_stream_->async_write(
 				    net::buffer(data),
 				    beast::bind_front_handler(
@@ -228,6 +230,7 @@ namespace savanna
 			}
 			void close() override
 			{
+				if(!raw_stream_->is_open()) return;
 				raw_stream_->async_close(
 				    beast::websocket::close_code::normal,
 				    beast::bind_front_handler(
@@ -325,7 +328,7 @@ namespace savanna
 			void on_close_l(beast::error_code ec) override { }
 
 		public:
-			~ssl_stream_logic() override
+			virtual ~ssl_stream_logic() override
 			{
 				ssl_stream_ = nullptr;
 				resolver_ = nullptr;
@@ -346,6 +349,7 @@ namespace savanna
 			}
 			void read() override
 			{
+				if(!ssl_stream_->is_open()) return;
 				buffer_.consume(buffer_.size());
 				ssl_stream_->async_read(
 				    buffer_,
@@ -355,6 +359,7 @@ namespace savanna
 			}
 			void write(std::string data) override
 			{
+				if(!ssl_stream_->is_open()) return;
 				ssl_stream_->async_write(
 				    net::buffer(data),
 				    beast::bind_front_handler(
@@ -363,11 +368,12 @@ namespace savanna
 			}
 			void close() override
 			{
+				if(!ssl_stream_->is_open()) return
 				ssl_stream_->async_close(
-				    beast::websocket::close_code::normal,
-				    beast::bind_front_handler(
-				        &interface::on_close,
-				        shared_from_this()));
+					beast::websocket::close_code::normal,
+					beast::bind_front_handler(
+						&interface::on_close,
+						shared_from_this()));
 			}
 		};
 
@@ -460,10 +466,7 @@ namespace savanna
 				ssl_cache_ = ssl_cache;
 			}
 
-			~reuse_websocket_executor()
-			{
-				close();
-			}
+			virtual ~reuse_websocket_executor(){ }
 
 			state current_state()
 			{

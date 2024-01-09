@@ -142,7 +142,7 @@ namespace ssl_reuse
 
 		void on_shutdown_l(beast::error_code ec) override {}
 	public:
-		~http_logic() override{
+		virtual ~http_logic() override{
 			tcp_stream_ = nullptr;
 			resolver_ = nullptr;
 		}
@@ -378,8 +378,7 @@ namespace ssl_reuse
 		{
 			ssl_cache_ = {};
 		}
-		~reuse_async_url_session(){
-		}
+		virtual ~reuse_async_url_session(){ }
 
 		template <class Body>
 		std::shared_ptr<reuse_async_request_executor<Body>> prepare(ssl::context ssl_ctx){
