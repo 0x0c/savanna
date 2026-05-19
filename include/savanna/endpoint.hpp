@@ -60,7 +60,7 @@ namespace savanna
 			std::string new_url;
 			new_url += scheme() + "://";
 			new_url += host();
-			if (port() != 80) {
+			if (port() != 80 && port() != 443) {
 				new_url += ":" + std::to_string(port());
 			}
 			new_url += build_path();
